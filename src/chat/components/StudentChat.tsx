@@ -102,13 +102,23 @@ export function StudentChat() {
     return undefined
   }
 
-  const extractMarkdown = (data: unknown, fallback: string) => {
-    if (typeof data === 'string') return data || fallback
-    if (!data || typeof data !== 'object') return fallback
-    const record = data as Record<string, unknown>
-    if (typeof record.markdown === 'string') return record.markdown
-    if (typeof record.content === 'string') return record.content
-    return fallback
+  const fetchSessionReport = async (chatId: string, sessionId: string) => {
+    try {
+      const reportData = await chatAPI.getSessionReport(sessionId)
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        reportMarkdown: reportData.reportData,
+        reportStatus: 'ready',
+        status: 'completed',
+      }))
+    } catch (error) {
+      console.error('Failed to fetch report:', error)
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        reportStatus: 'error',
+        status: 'completed',
+      }))
+    }
   }
 
   const handleStreamEvent = (chatId: string, sessionId: string, event: ChatStreamEvent) => {
@@ -122,28 +132,10 @@ export function StudentChat() {
       applyChatUpdate(chatId, (chat) => ({
         ...chat,
         status: 'completed',
-        reportStatus: chat.reportStatus === 'ready' ? 'ready' : 'loading',
+        reportStatus: 'loading',
       }))
+      fetchSessionReport(chatId, sessionId)
       return
-    }
-
-    if (event.event === 'report') {
-      const markdown = extractMarkdown(payload, event.data)
-      applyChatUpdate(chatId, (chat) => ({
-        ...chat,
-        reportMarkdown: markdown,
-        reportStatus: 'ready',
-        status: 'completed',
-      }))
-      return
-    }
-
-    if (event.event === 'report_error') {
-      applyChatUpdate(chatId, (chat) => ({
-        ...chat,
-        reportStatus: 'error',
-        status: 'completed',
-      }))
     }
   }
 
@@ -220,38 +212,9 @@ export function StudentChat() {
     setInput('')
     setIsThinking(true)
 
-    const aiMessageId = (Date.now() + 1).toString()
-    const aiMessage: Message = {
-      id: aiMessageId,
-      role: 'ai',
-      content: '',
-      timestamp: new Date(),
-      streaming: true,
-    }
-
-    if (isDraft) {
-      setDraftChat((prev) => {
-        if (!prev || prev.id !== currentChatId) return prev
-        return {
-          ...prev,
-          messages: [...prev.messages, aiMessage],
-        }
-      })
-    } else {
-      setChatSessions((prev) =>
-        prev.map((chat) =>
-          chat.id === currentChatId
-            ? {
-                ...chat,
-                messages: [...chat.messages, aiMessage],
-              }
-            : chat,
-        ),
-      )
-    }
-    setIsThinking(false)
-
     const sessionId = getSessionId(targetChat)
+    const aiMessageId = (Date.now() + 1).toString()
+    let firstChunkReceived = false
 
     try {
       await chatAPI.streamChat(
@@ -262,6 +225,44 @@ export function StudentChat() {
         },
         {
           onChunk: (chunk: string) => {
+            if (!firstChunkReceived) {
+              firstChunkReceived = true
+              setIsThinking(false)
+
+              const aiMessage: Message = {
+                id: aiMessageId,
+                role: 'ai',
+                content: chunk,
+                timestamp: new Date(),
+                streaming: true,
+              }
+
+              if (isDraft) {
+                setDraftChat((prev) => {
+                  if (!prev || prev.id !== currentChatId) return prev
+                  return {
+                    ...prev,
+                    messages: [...prev.messages, aiMessage],
+                    lastMessage: chunk,
+                    timestamp: new Date(),
+                  }
+                })
+              } else {
+                setChatSessions((prev) =>
+                  prev.map((chat) =>
+                    chat.id === currentChatId
+                      ? {
+                          ...chat,
+                          messages: [...chat.messages, aiMessage],
+                          lastMessage: chunk,
+                          timestamp: new Date(),
+                        }
+                      : chat,
+                  ),
+                )
+              }
+              return
+            }
             if (isDraft) {
               setDraftChat((prev) => {
                 if (!prev || prev.id !== currentChatId) return prev
@@ -340,37 +341,50 @@ export function StudentChat() {
           },
           onError: (error: Error) => {
             console.error('Chat streaming error:', error)
+            setIsThinking(false)
+
+            const errorMessage: Message = {
+              id: aiMessageId,
+              role: 'ai',
+              content: '오류가 발생했습니다. 다시 시도해주세요.',
+              timestamp: new Date(),
+              streaming: false,
+              isError: true,
+            }
+
             if (isDraft) {
               setDraftChat((prev) => {
                 if (!prev || prev.id !== currentChatId) return prev
+                const hasMessage = prev.messages.some((msg) => msg.id === aiMessageId)
+                if (hasMessage) {
+                  return {
+                    ...prev,
+                    messages: prev.messages.map((msg) =>
+                      msg.id === aiMessageId ? errorMessage : msg,
+                    ),
+                  }
+                }
                 return {
                   ...prev,
-                  messages: prev.messages.map((msg) =>
-                    msg.id === aiMessageId
-                      ? {
-                          ...msg,
-                          content: '오류가 발생했습니다. 다시 시도해주세요.',
-                          streaming: false,
-                        }
-                      : msg,
-                  ),
+                  messages: [...prev.messages, errorMessage],
                 }
               })
             } else {
               setChatSessions((prev) =>
                 prev.map((chat) => {
                   if (chat.id !== currentChatId) return chat
+                  const hasMessage = chat.messages.some((msg) => msg.id === aiMessageId)
+                  if (hasMessage) {
+                    return {
+                      ...chat,
+                      messages: chat.messages.map((msg) =>
+                        msg.id === aiMessageId ? errorMessage : msg,
+                      ),
+                    }
+                  }
                   return {
                     ...chat,
-                    messages: chat.messages.map((msg) =>
-                      msg.id === aiMessageId
-                        ? {
-                            ...msg,
-                            content: '오류가 발생했습니다. 다시 시도해주세요.',
-                            streaming: false,
-                          }
-                        : msg,
-                    ),
+                    messages: [...chat.messages, errorMessage],
                   }
                 }),
               )

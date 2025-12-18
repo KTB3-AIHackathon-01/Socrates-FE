@@ -217,4 +217,12 @@ export const chatAPI: ChatAPIService = {
       return false
     }
   },
+
+  async getSessionReport(sessionId: string) {
+    const response = await fetch(`${CHAT_API_BASE_URL}/report/${sessionId}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch report: ${response.status}`)
+    }
+    return response.json()
+  },
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, FileText, Loader2, Maximize2 } from 'lucide-react'
 import ReactMarkdown, { type Components } from 'react-markdown'
@@ -51,16 +51,14 @@ const markdownComponents: Components = {
       {children}
     </em>
   ),
-  code: ({ children, className }) => {
-    const isInline = !className
-
-    if (isInline) {
-      return <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm">{children}</code>
-    }
-
-    return (
-      <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto mb-4">
-        <code className={className}>{children}</code>
+  code: ({ inline, children, ...props }) =>
+    inline ? (
+      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
+        {children}
+      </code>
+    ) : (
+      <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto mb-4" {...props}>
+        <code>{children}</code>
       </pre>
     )
   },
@@ -107,20 +105,11 @@ interface ChatMessagesProps {
 export function ChatMessages({ messages, isThinking, sessionCompleted, reportStatus, reportMarkdown }: ChatMessagesProps) {
   const [isReportDialogOpen, setReportDialogOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const containerRef = useRef<HTMLDivElement | null>(null)
   const reportPreview = useMemo(() => reportMarkdown?.slice(0, 1200) ?? '', [reportMarkdown])
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
-
-  useEffect(() => {
-    if (!containerRef.current) return
-    containerRef.current.scrollTo({
-      top: containerRef.current.scrollHeight,
-      behavior: 'smooth',
-    })
-  }, [messages, isThinking])
 
   useEffect(() => {
     if (!isReportDialogOpen) return
@@ -148,14 +137,16 @@ export function ChatMessages({ messages, isThinking, sessionCompleted, reportSta
   }
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+    <div className="flex-1 overflow-y-auto p-6 space-y-4">
       {messages.map((message) => (
         <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
           <div
             className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-              message.role === 'user'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+              message.isError
+                ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-900 dark:text-red-100'
+                : message.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
             }`}
           >
             <p className="whitespace-pre-line">{message.content}</p>
