@@ -54,13 +54,8 @@ export interface ChatAPIService {
   getInstructors(): Promise<InstructorResponse[]>
   createSession(payload: CreateChatSessionRequest): Promise<ChatSessionResponse>
   getSession(sessionId: string): Promise<ChatSessionResponse>
-  getStudentSessions(
-    params: GetStudentSessionsParams,
-  ): Promise<PagedResponse<ChatSessionResponse>>
-  getSessionMessages(
-    sessionId: string,
-    params: GetSessionMessagesParams,
-  ): Promise<PagedResponse<ChatMessageResponse>>
+  getStudentSessions(params: GetStudentSessionsParams): Promise<PagedResponse<ChatSessionResponse>>
+  getSessionMessages(sessionId: string, params: GetSessionMessagesParams): Promise<PagedResponse<ChatMessageResponse>>
 }
 
 export interface CreateStudentRequest {

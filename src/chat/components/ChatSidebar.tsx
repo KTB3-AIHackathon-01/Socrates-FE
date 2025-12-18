@@ -1,11 +1,12 @@
 import { MessageSquare, Plus, Search, Menu, X } from 'lucide-react'
-import type { ChatViewSession as ChatSession } from '@/chat/components/chatViewTypes'
+
+import type { ChatSessionResponse } from '../api/types'
 
 interface ChatSidebarProps {
   isOpen: boolean
   searchQuery: string
   onSearchChange: (value: string) => void
-  chats: ChatSession[]
+  sessions: ChatSessionResponse[]
   activeChatId: string
   onSelectChat: (id: string) => void
   onNewChat: () => void
@@ -13,17 +14,7 @@ interface ChatSidebarProps {
   formatTimestamp: (date: Date) => string
 }
 
-export function ChatSidebar({
-  isOpen,
-  searchQuery,
-  onSearchChange,
-  chats,
-  activeChatId,
-  onSelectChat,
-  onNewChat,
-  onToggle,
-  formatTimestamp,
-}: ChatSidebarProps) {
+export function ChatSidebar({ isOpen, searchQuery, onSearchChange, sessions, activeChatId, onSelectChat, onNewChat, onToggle }: ChatSidebarProps) {
   return (
     <>
       <div className={`${isOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col overflow-hidden`}>
@@ -63,15 +54,15 @@ export function ChatSidebar({
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">내 채팅</p>
               </div>
               <div className="space-y-1">
-                {chats.map((chat) => (
+                {sessions.map((session) => (
                   <div
-                    key={chat.id}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-1 ${activeChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                    key={session.sessionId}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1 ${activeChatId === session.sessionId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                   >
                     <button
-                      onClick={() => onSelectChat(chat.id)}
+                      onClick={() => onSelectChat(session.sessionId)}
                       className={`flex-1 text-left px-1 py-1 rounded-lg transition-colors focus:outline-none ${
-                        activeChatId === chat.id
+                        activeChatId === session.sessionId
                           ? 'text-blue-700 dark:text-blue-400'
                           : 'text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-300'
                       }`}
@@ -79,8 +70,7 @@ export function ChatSidebar({
                       <div className="flex items-start gap-2">
                         <MessageSquare className="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm line-clamp-1">{chat.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{formatTimestamp(chat.timestamp)}</p>
+                          <p className="text-sm line-clamp-1">{session.name}</p>
                         </div>
                       </div>
                     </button>

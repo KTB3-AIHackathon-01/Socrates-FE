@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { Brain } from 'lucide-react'
 import { ChatSidebar } from '@/chat/components/ChatSidebar'
 import { ChatMessages } from '@/chat/components/ChatMessages'
@@ -6,73 +6,14 @@ import { ChatComposer } from '@/chat/components/ChatComposer'
 import { LearningInsights } from '@/chat/components/LearningInsights'
 import type { ChatSession, Message } from '@/chat/types'
 import { streamChat, generateChatTitle, type ChatStreamEvent } from '@/chat/api'
-
-const createSession = (id: string, title: string, preview: string, daysAgo = 0): ChatSession => {
-  const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
-  const initialMessage: Message = {
-    id: `${id}-ai-1`,
-    role: 'ai',
-    content: preview,
-    timestamp,
-  }
-
-  return {
-    id,
-    title,
-    lastMessage: preview,
-    timestamp,
-    messages: [initialMessage],
-    isUserSession: false,
-  }
-}
-
-const initialChatSessions: ChatSession[] = [
-  createSession(
-    '1',
-    'TypeScript React 환경 설정',
-    'TypeScript와 React를 함께 사용하려면 tsconfig 설정부터 맞춰볼까요?',
-  ),
-  createSession(
-    '2',
-    'LangChain vs LangGraph',
-    'LangChain과 LangGraph의 차이점을 단계별로 비교해드릴게요.',
-    1,
-  ),
-  createSession(
-    '3',
-    'Spring AI vs FastAPI',
-    '성능과 개발 생산성 측면에서 어떤 프레임워크가 나을까요?',
-    2,
-  ),
-  createSession(
-    '4',
-    'Spring AI LangGraph 통합',
-    'Spring AI에 LangGraph를 연결하는 순서를 정리해보겠습니다.',
-    3,
-  ),
-  createSession(
-    '5',
-    'MongoDB 데이터 모델링 패턴',
-    '도큐먼트 구조를 어떻게 나눠야 할지 함께 설계해볼까요?',
-    4,
-  ),
-  createSession(
-    '6',
-    '백엔드 아키텍처 설계',
-    '확장 가능한 모듈형 아키텍처를 구성하는 법을 알려드릴게요.',
-    5,
-  ),
-  createSession(
-    '7',
-    '채팅 기록 저장 DB',
-    '채팅 로그를 안정적으로 저장하는 DB 스키마를 살펴볼까요?',
-    6,
-  ),
-]
+import { chatAPI } from '@/chat/api/chatAPI'
+import type { ChatSessionResponse } from '@/chat/api/types'
 
 export function StudentChat() {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>(initialChatSessions)
-  const [activeChatId, setActiveChatId] = useState(() => initialChatSessions[0]?.id ?? '1')
+  const studentId = localStorage.getItem('student-id')
+  const [newChatSessions, setNewChatSessions] = useState<ChatSessionResponse[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [activeChatId, setActiveChatId] = useState('')
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -88,15 +29,19 @@ export function StudentChat() {
   const reportStatus = activeChat?.reportStatus
   const reportMarkdown = activeChat?.reportMarkdown
 
-  const filteredChats = useMemo(() => {
-    const visibleChats = chatSessions.filter(
-      (chat) => !chat.isUserSession || chat.messages.some((message) => message.role === 'user'),
-    )
+  useEffect(() => {
+    const getChatSessions = async () => {
+      if (!studentId) {
+        return
+      }
 
-    return visibleChats.filter((chat) =>
-      chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-  }, [chatSessions, searchQuery])
+      const response = await chatAPI.getStudentSessions({ studentId: studentId })
+      const sessions = response.content
+      setNewChatSessions(sessions)
+    }
+
+    getChatSessions()
+  }, [])
 
   const getSessionId = (chat: ChatSession) => chat.sessionId || chat.id
 
@@ -364,9 +309,17 @@ export function StudentChat() {
     setSidebarOpen(true)
   }
 
-  const handleSelectChat = (id: string) => {
+  const handleSelectChat = async (id: string) => {
     setActiveChatId(id)
     setIsThinking(false)
+
+    if (!studentId) {
+      return
+    }
+
+    const response = await chatAPI.getSessionMessages(id, {
+      studentId: studentId,
+    })
   }
 
   const formatTimestamp = (date: Date) => {
@@ -385,7 +338,7 @@ export function StudentChat() {
         isOpen={sidebarOpen}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        chats={filteredChats}
+        sessions={newChatSessions}
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
