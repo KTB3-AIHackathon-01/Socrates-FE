@@ -1,19 +1,11 @@
 import { useState } from 'react';
-import {
-  Users,
-  TrendingUp,
-  MessageSquare,
-  Brain,
-  AlertTriangle,
-  Search,
-  AlertCircle,
-  ChevronRight,
-} from 'lucide-react';
+import { Users, TrendingUp, MessageSquare, Brain, ChevronRight, Search } from 'lucide-react';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -29,23 +21,6 @@ interface Student {
   comprehensionRate: number;
   lastActive: string;
   trend: 'up' | 'down' | 'stable';
-}
-
-interface KeywordData {
-  keyword: string;
-  count: number;
-}
-
-interface TopicData {
-  topic: string;
-  questions: number;
-}
-
-interface RepeatStudent {
-  id: string;
-  name: string;
-  concept: string;
-  repeatCount: number;
 }
 
 const mockStudents: Student[] = [
@@ -64,31 +39,11 @@ const learningTrendData = [
   { date: '금', questions: 35, comprehension: 88 },
 ];
 
-// MVP 지표 ① 질문 키워드 빈도 TOP N
-const keywordFrequency: KeywordData[] = [
-  { keyword: 'async/await', count: 18 },
-  { keyword: 'Promise', count: 12 },
-  { keyword: 'EventLoop', count: 9 },
-  { keyword: 'Callback', count: 7 },
-  { keyword: 'Redux', count: 6 },
-];
-
-// MVP 지표 ② 주제별 질문 밀집도
-const topicDensity: TopicData[] = [
-  { topic: '비동기 처리', questions: 45 },
-  { topic: 'React Hooks', questions: 32 },
-  { topic: 'TypeScript', questions: 28 },
-  { topic: 'HTTP 통신', questions: 18 },
-  { topic: 'State 관리', questions: 15 },
-  { topic: 'DB 트랜잭션', questions: 8 },
-];
-
-// MVP 지표 ③ 반복 질문 학생
-const repeatStudents: RepeatStudent[] = [
-  { id: 's12', name: '박민준', concept: 'async/await', repeatCount: 4 },
-  { id: 's07', name: '정우진', concept: 'Promise', repeatCount: 3 },
-  { id: 's23', name: '김수진', concept: 'Redux', repeatCount: 3 },
-  { id: 's15', name: '이준호', concept: 'EventLoop', repeatCount: 2 },
+const questionTypeData = [
+  { type: '개념 이해', count: 45 },
+  { type: '문제 해결', count: 38 },
+  { type: '심화 학습', count: 22 },
+  { type: '복습', count: 15 },
 ];
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
@@ -149,29 +104,24 @@ export function InstructorDashboard() {
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-pink-600 dark:text-pink-400" />
             </div>
-            <span className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1">
-              <AlertCircle className="w-4 h-4" />
-              주의 필요
+            <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
+              <TrendingUp className="w-4 h-4" />
+              +15%
             </span>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">반복 질문 학생</p>
-          <p className="text-gray-900 dark:text-white mt-1">{repeatStudents.length}명</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">학습 참여율</p>
+          <p className="text-gray-900 dark:text-white mt-1">94.2%</p>
         </div>
       </div>
 
-      {/* 학습 추이 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-gray-900 dark:text-white">학습 추세</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">질문 수와 이해도 추이</p>
-            </div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">최근 5일</span>
-          </div>
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Learning Trend */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h3 className="text-gray-900 dark:text-white mb-4">주간 학습 추이</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={learningTrendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" className="dark:stroke-gray-700" />
@@ -191,127 +141,36 @@ export function InstructorDashboard() {
           </ResponsiveContainer>
         </div>
 
+        {/* Question Types */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <h3 className="text-gray-900 dark:text-white mb-4">질문 유형 분석</h3>
-          <ul className="space-y-3">
-            {['개념 이해', '문제 해결', '심화 학습', '복습'].map((type, index) => (
-              <li key={type} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  ></span>
-                  <span className="text-gray-900 dark:text-gray-100">{type}</span>
-                </div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">{[45, 38, 22, 15][index]}건</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* MVP 핵심 지표 3개 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* MVP 지표 ① 질문 키워드 빈도 */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <div className="mb-4">
-            <h3 className="text-gray-900 dark:text-white mb-1">가장 많이 막히는 개념</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              학생들이 반복적으로 질문하는 키워드 TOP 5
-            </p>
+          <div className="flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={questionTypeData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ type, percent }) => `${type} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="count"
+                >
+                  {questionTypeData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '0.5rem',
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={keywordFrequency} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" className="dark:stroke-gray-700" />
-              <XAxis type="number" stroke="#9ca3af" className="dark:stroke-gray-400" />
-              <YAxis dataKey="keyword" type="category" stroke="#9ca3af" className="dark:stroke-gray-400" width={100} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'var(--color-card)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '0.5rem',
-                }}
-              />
-              <Bar dataKey="count" fill="#3b82f6" radius={[0, 8, 8, 0]} name="질문 수" />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              💡 <strong>액션:</strong> 다음 수업에서 'async/await' 개념 보강 권장
-            </p>
-          </div>
-        </div>
-
-        {/* MVP 지표 ② 주제별 질문 밀집도 */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <div className="mb-4">
-            <h3 className="text-gray-900 dark:text-white mb-1">커리큘럼별 어려움 구간</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">주제별 질문 밀집도 분석</p>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={topicDensity} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" className="dark:stroke-gray-700" />
-              <XAxis type="number" stroke="#9ca3af" className="dark:stroke-gray-400" />
-              <YAxis dataKey="topic" type="category" stroke="#9ca3af" className="dark:stroke-gray-400" width={100} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'var(--color-card)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '0.5rem',
-                }}
-              />
-              <Bar dataKey="questions" fill="#8b5cf6" radius={[0, 8, 8, 0]} name="질문 수" />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
-            <p className="text-sm text-purple-800 dark:text-purple-200">
-              💡 <strong>액션:</strong> '비동기 처리' 섹션에 추가 예제 제공 필요
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* MVP 지표 ③ 반복 질문 학생 (Risk Indicator) */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            <h3 className="text-gray-900 dark:text-white">개별 케어 필요 학생</h3>
-          </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            같은 개념을 반복적으로 질문하는 학생 목록 (조기 식별)
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {repeatStudents.map((student) => (
-            <div
-              key={student.id}
-              className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center text-white">
-                  {student.name[0]}
-                </div>
-                <span className="px-2 py-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full text-xs">
-                  {student.repeatCount}회
-                </span>
-              </div>
-              <p className="text-gray-900 dark:text-gray-100 mb-1">{student.name}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                반복 개념: <span className="text-amber-700 dark:text-amber-300">{student.concept}</span>
-              </p>
-              <button className="w-full px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors">
-                1:1 케어 시작
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            💡 <strong>액션:</strong> 위 학생들에게 개별 질문 유도 또는 보충 자료 전달 권장
-          </p>
         </div>
       </div>
 
