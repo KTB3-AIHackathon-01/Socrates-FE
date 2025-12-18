@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Brain } from 'lucide-react';
 import { ChatSidebar } from '@/chat/components/ChatSidebar';
 import { ChatMessages } from '@/chat/components/ChatMessages';
 import { ChatComposer } from '@/chat/components/ChatComposer';
 import { LearningInsights } from '@/chat/components/LearningInsights';
 import type { ChatSession, Message } from '@/chat/types';
-import { streamChat } from '@/chat/api';
+import { streamChat, generateChatTitle, type ChatStreamEvent } from '@/chat/api';
 
 const createSession = (id: string, title: string, preview: string, daysAgo = 0): ChatSession => {
   const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
@@ -43,12 +43,16 @@ export function StudentChat() {
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const titleGenerationInProgress = useRef<Set<string>>(new Set());
 
   const activeChat = useMemo(
     () => chatSessions.find((chat) => chat.id === activeChatId) ?? chatSessions[0],
     [activeChatId, chatSessions],
   );
   const messages = activeChat?.messages ?? [];
+  const sessionCompleted = activeChat?.status === 'completed';
+  const reportStatus = activeChat?.reportStatus;
+  const reportMarkdown = activeChat?.reportMarkdown;
 
   const filteredChats = useMemo(() => {
     const visibleChats = chatSessions.filter(
@@ -61,14 +65,122 @@ export function StudentChat() {
     );
   }, [chatSessions, searchQuery]);
 
+  const getSessionId = (chat: ChatSession) => chat.sessionId || chat.id;
+
+  const parseEventData = (payload: string): unknown => {
+    try {
+      return JSON.parse(payload);
+    } catch {
+      return payload;
+    }
+  };
+
+  const extractSessionId = (data: unknown): string | undefined => {
+    if (!data || typeof data !== 'object') return undefined;
+    const record = data as Record<string, unknown>;
+    if (typeof record.session_id === 'string') return record.session_id;
+    if (typeof record.sessionId === 'string') return record.sessionId;
+    return undefined;
+  };
+
+  const extractMarkdown = (data: unknown, fallback: string) => {
+    if (typeof data === 'string') return data || fallback;
+    if (!data || typeof data !== 'object') return fallback;
+    const record = data as Record<string, unknown>;
+    if (typeof record.markdown === 'string') return record.markdown;
+    if (typeof record.content === 'string') return record.content;
+    return fallback;
+  };
+
+  const handleStreamEvent = (chatId: string, sessionId: string, event: ChatStreamEvent) => {
+    if (!event.event) return;
+
+    const payload = parseEventData(event.data);
+    const targetSessionId = extractSessionId(payload);
+    if (targetSessionId && targetSessionId !== sessionId) return;
+
+    if (event.event === 'chat_end') {
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                status: 'completed',
+                reportStatus: chat.reportStatus === 'ready' ? 'ready' : 'loading',
+              }
+            : chat,
+        ),
+      );
+      return;
+    }
+
+    if (event.event === 'report') {
+      const markdown = extractMarkdown(payload, event.data);
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                reportMarkdown: markdown,
+                reportStatus: 'ready',
+                status: 'completed',
+              }
+            : chat,
+        ),
+      );
+      return;
+    }
+
+    if (event.event === 'report_error') {
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                reportStatus: 'error',
+                status: 'completed',
+              }
+            : chat,
+        ),
+      );
+    }
+  };
+
+  const generateTitleInBackground = async (chatId: string, firstMessage: string, sessionId: string) => {
+    if (titleGenerationInProgress.current.has(chatId)) return;
+
+    titleGenerationInProgress.current.add(chatId);
+
+    try {
+      const title = await generateChatTitle({
+        message: firstMessage,
+        sessionId,
+      });
+
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? { ...chat, title }
+            : chat,
+        ),
+      );
+    } catch (error) {
+      console.error('Failed to generate title:', error);
+    } finally {
+      titleGenerationInProgress.current.delete(chatId);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || !activeChat) return;
 
     const currentChatId = activeChat.id;
+    const isFirstMessage = activeChat.messages.filter((msg) => msg.role === 'user').length === 0;
+    const userMessageContent = input;
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: userMessageContent,
       timestamp: new Date(),
     };
 
@@ -81,6 +193,8 @@ export function StudentChat() {
           messages: updatedMessages,
           lastMessage: userMessage.content,
           timestamp: userMessage.timestamp,
+          status: 'active',
+          reportStatus: chat.reportStatus ?? 'idle',
         };
       }),
     );
@@ -108,64 +222,74 @@ export function StudentChat() {
     );
     setIsThinking(false);
 
+    const sessionId = getSessionId(activeChat);
+
     try {
       await streamChat(
         {
-          message: userMessage.content,
+          message: userMessageContent,
           userId: activeChat.userId,
-          sessionId: activeChat.sessionId || activeChat.id,
+          sessionId,
         },
-        (chunk) => {
-          setChatSessions((prev) =>
-            prev.map((chat) => {
-              if (chat.id !== currentChatId) return chat;
-              return {
-                ...chat,
-                messages: chat.messages.map((msg) =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: msg.content + chunk }
-                    : msg,
-                ),
-                lastMessage: chat.messages.find((msg) => msg.id === aiMessageId)?.content || chat.lastMessage,
-                timestamp: new Date(),
-              };
-            }),
-          );
-        },
-        () => {
-          setChatSessions((prev) =>
-            prev.map((chat) => {
-              if (chat.id !== currentChatId) return chat;
-              return {
-                ...chat,
-                messages: chat.messages.map((msg) =>
-                  msg.id === aiMessageId
-                    ? { ...msg, streaming: false }
-                    : msg,
-                ),
-              };
-            }),
-          );
-        },
-        (error) => {
-          console.error('Chat streaming error:', error);
-          setChatSessions((prev) =>
-            prev.map((chat) => {
-              if (chat.id !== currentChatId) return chat;
-              return {
-                ...chat,
-                messages: chat.messages.map((msg) =>
-                  msg.id === aiMessageId
-                    ? {
-                        ...msg,
-                        content: '오류가 발생했습니다. 다시 시도해주세요.',
-                        streaming: false,
-                      }
-                    : msg,
-                ),
-              };
-            }),
-          );
+        {
+          onChunk: (chunk) => {
+            setChatSessions((prev) =>
+              prev.map((chat) => {
+                if (chat.id !== currentChatId) return chat;
+                return {
+                  ...chat,
+                  messages: chat.messages.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: msg.content + chunk }
+                      : msg,
+                  ),
+                  lastMessage:
+                    chat.messages.find((msg) => msg.id === aiMessageId)?.content || chat.lastMessage,
+                  timestamp: new Date(),
+                };
+              }),
+            );
+          },
+          onEvent: (event) => handleStreamEvent(currentChatId, sessionId, event),
+          onComplete: () => {
+            setChatSessions((prev) =>
+              prev.map((chat) => {
+                if (chat.id !== currentChatId) return chat;
+                return {
+                  ...chat,
+                  messages: chat.messages.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, streaming: false }
+                      : msg,
+                  ),
+                };
+              }),
+            );
+
+            if (isFirstMessage && activeChat.title === '새 채팅') {
+              generateTitleInBackground(currentChatId, userMessageContent, sessionId);
+            }
+          },
+          onError: (error) => {
+            console.error('Chat streaming error:', error);
+            setChatSessions((prev) =>
+              prev.map((chat) => {
+                if (chat.id !== currentChatId) return chat;
+                return {
+                  ...chat,
+                  messages: chat.messages.map((msg) =>
+                    msg.id === aiMessageId
+                      ? {
+                          ...msg,
+                          content: '오류가 발생했습니다. 다시 시도해주세요.',
+                          streaming: false,
+                        }
+                      : msg,
+                  ),
+                };
+              }),
+            );
+          },
         },
       );
     } catch (error) {
@@ -200,6 +324,8 @@ export function StudentChat() {
       timestamp,
       messages: [greeting],
       isUserSession: true,
+      status: 'active',
+      reportStatus: 'idle',
     };
 
     setChatSessions((prev) => [newChat, ...prev]);
@@ -270,7 +396,13 @@ export function StudentChat() {
             </div>
           </div>
 
-          <ChatMessages messages={messages} isThinking={isThinking} />
+          <ChatMessages
+            messages={messages}
+            isThinking={isThinking}
+            sessionCompleted={sessionCompleted}
+            reportStatus={reportStatus}
+            reportMarkdown={reportMarkdown}
+          />
           <ChatComposer value={input} onChange={setInput} onSend={handleSend} />
         </div>
 

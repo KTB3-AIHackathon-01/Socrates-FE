@@ -16,4 +16,7 @@ export interface ChatSession {
   isUserSession?: boolean
   userId?: string
   sessionId?: string
+  status?: 'active' | 'completed'
+  reportStatus?: 'idle' | 'loading' | 'ready' | 'error'
+  reportMarkdown?: string
 }
