@@ -60,12 +60,10 @@ export async function streamChat(
 
       const payload = pendingEvent.dataLines.join('\n')
 
-      if (pendingEvent.name) {
-        if (onEvent) {
-          onEvent({ event: pendingEvent.name, data: payload })
-        } else if (payload) {
-          onChunk(payload)
-        }
+      if (pendingEvent.name === 'message') {
+        onChunk(payload)
+      } else if (pendingEvent.name) {
+        onEvent?.({ event: pendingEvent.name, data: payload })
       } else if (payload) {
         onChunk(payload)
       }

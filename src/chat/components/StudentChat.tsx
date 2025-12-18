@@ -172,7 +172,7 @@ export function StudentChat() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !activeChat) return;
+    if (!input.trim() || !activeChat || activeChat.status === 'completed') return;
 
     const currentChatId = activeChat.id;
     const isFirstMessage = activeChat.messages.filter((msg) => msg.role === 'user').length === 0;
@@ -403,7 +403,7 @@ export function StudentChat() {
             reportStatus={reportStatus}
             reportMarkdown={reportMarkdown}
           />
-          <ChatComposer value={input} onChange={setInput} onSend={handleSend} />
+          <ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={sessionCompleted} />
         </div>
 
         <LearningInsights />
