@@ -147,10 +147,7 @@ export const chatAPI: ChatAPIService = {
         }
 
         if (cleanLine.startsWith('data:')) {
-          let data = cleanLine.slice(5)
-          if (data.startsWith(' ') && data.length > 1) {
-            data = data.slice(1)
-          }
+          const data = cleanLine.slice(5)
           pendingEvent.dataLines.push(data)
           return
         }
