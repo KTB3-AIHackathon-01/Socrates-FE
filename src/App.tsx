@@ -4,6 +4,7 @@ import { InstructorDashboard } from '@/dashboard'
 import { StudentPrompt } from '@/components/StudentPrompt'
 import { InstructorPrompt } from '@/components/InstructorPrompt'
 import { GraduationCap } from 'lucide-react'
+import { chatAPI } from './chat/api/chatAPI'
 
 const STORAGE_KEYS = {
   student: 'student-id',
@@ -29,6 +30,35 @@ export default function App() {
   const [instructorId, setInstructorId] = useState<string | null>(() =>
     getStoredNickname(STORAGE_KEYS.instructor),
   )
+
+  const [studentName, setStudentName] = useState('')
+  const [instructorName, setInstructorName] = useState('')
+
+  useEffect(() => {
+    if (!studentId || pathname !== '/student') {
+      return
+    }
+
+    const getStudentProfile = async () => {
+      const response = await chatAPI.getStudentProfile(studentId)
+      setStudentName(response.studentName)
+    }
+
+    getStudentProfile()
+  }, [])
+
+  useEffect(() => {
+    if (!instructorId || pathname !== '/instructor') {
+      return
+    }
+
+    const getInstructorProfile = async () => {
+      const response = await chatAPI.getInstructorProfile(instructorId)
+      setInstructorName(response.instructorName)
+    }
+
+    getInstructorProfile()
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -139,7 +169,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg"></div>
+            <div className="flex gap-2 dark:bg-gray-800 p-1 rounded-lg">
+              {studentName || instructorName}
+            </div>
           </div>
         </div>
       </header>

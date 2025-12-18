@@ -93,10 +93,14 @@ export interface ChatAPIService {
   createStudent(payload: CreateStudentRequest): Promise<StudentResponse>
   getStudentProfile(studentId: string): Promise<StudentResponse>
   getInstructors(): Promise<InstructorResponse[]>
+  getInstructorProfile(instructorId: string): Promise<InstructorResponse>
   createSession(payload: CreateChatSessionRequest): Promise<ChatSessionResponse>
   getSession(sessionId: string): Promise<ChatSessionResponse>
   getStudentSessions(params: GetStudentSessionsParams): Promise<PagedResponse<ChatSessionResponse>>
-  getSessionMessages(sessionId: string, params: GetSessionMessagesParams): Promise<PagedResponse<ChatMessageResponse>>
+  getSessionMessages(
+    sessionId: string,
+    params: GetSessionMessagesParams,
+  ): Promise<PagedResponse<ChatMessageResponse>>
   getChatHistory(sessionId: string): Promise<ChatHistoryResponse[]>
   streamChat(request: ChatRequest, callbacks: StreamCallbacks): Promise<void>
   generateChatTitle(request: GenerateTitleRequest): Promise<string>

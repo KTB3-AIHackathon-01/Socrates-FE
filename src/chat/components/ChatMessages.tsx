@@ -51,15 +51,16 @@ const markdownComponents: Components = {
       {children}
     </em>
   ),
-  code: ({ node, children, ...props }) => {
-    const isInline = !node || node.position?.start.line === node.position?.end.line
-    return isInline ? (
-      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
-        {children}
-      </code>
-    ) : (
+  code: ({ children, className }) => {
+    const isInline = !className
+
+    if (isInline) {
+      return <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm">{children}</code>
+    }
+
+    return (
       <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto mb-4">
-        <code {...props}>{children}</code>
+        <code className={className}>{children}</code>
       </pre>
     )
   },
