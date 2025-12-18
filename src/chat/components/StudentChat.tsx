@@ -5,6 +5,7 @@ import { ChatMessages } from '@/chat/components/ChatMessages';
 import { ChatComposer } from '@/chat/components/ChatComposer';
 import { LearningInsights } from '@/chat/components/LearningInsights';
 import type { ChatSession, Message } from '@/chat/types';
+import { streamChat } from '@/chat/api';
 
 const createSession = (id: string, title: string, preview: string, daysAgo = 0): ChatSession => {
   const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
@@ -60,7 +61,7 @@ export function StudentChat() {
     );
   }, [chatSessions, searchQuery]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || !activeChat) return;
 
     const currentChatId = activeChat.id;
@@ -86,29 +87,90 @@ export function StudentChat() {
     setInput('');
     setIsThinking(true);
 
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'ai',
-        content: `좋은 질문이에요! 이 문제를 해결하기 위해 먼저 다음을 생각해보세요:\n\n1. 문제의 핵심이 무엇인가요?\n2. 어떤 접근 방식을 시도해볼 수 있을까요?\n3. 이전에 비슷한 문제를 풀어본 경험이 있나요?\n\n한 단계씩 함께 풀어나가봐요!`,
-        timestamp: new Date(),
-        comprehensionCheck: true,
-      };
+    const aiMessageId = (Date.now() + 1).toString();
+    const aiMessage: Message = {
+      id: aiMessageId,
+      role: 'ai',
+      content: '',
+      timestamp: new Date(),
+      streaming: true,
+    };
 
-      setChatSessions((prev) =>
-        prev.map((chat) =>
-          chat.id === currentChatId
-            ? {
+    setChatSessions((prev) =>
+      prev.map((chat) =>
+        chat.id === currentChatId
+          ? {
+              ...chat,
+              messages: [...chat.messages, aiMessage],
+            }
+          : chat,
+      ),
+    );
+    setIsThinking(false);
+
+    try {
+      await streamChat(
+        {
+          message: userMessage.content,
+          userId: activeChat.userId,
+          sessionId: activeChat.sessionId || activeChat.id,
+        },
+        (chunk) => {
+          setChatSessions((prev) =>
+            prev.map((chat) => {
+              if (chat.id !== currentChatId) return chat;
+              return {
                 ...chat,
-                messages: [...chat.messages, aiMessage],
-                lastMessage: aiMessage.content,
-                timestamp: aiMessage.timestamp,
-              }
-            : chat,
-        ),
+                messages: chat.messages.map((msg) =>
+                  msg.id === aiMessageId
+                    ? { ...msg, content: msg.content + chunk }
+                    : msg,
+                ),
+                lastMessage: chat.messages.find((msg) => msg.id === aiMessageId)?.content || chat.lastMessage,
+                timestamp: new Date(),
+              };
+            }),
+          );
+        },
+        () => {
+          setChatSessions((prev) =>
+            prev.map((chat) => {
+              if (chat.id !== currentChatId) return chat;
+              return {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === aiMessageId
+                    ? { ...msg, streaming: false }
+                    : msg,
+                ),
+              };
+            }),
+          );
+        },
+        (error) => {
+          console.error('Chat streaming error:', error);
+          setChatSessions((prev) =>
+            prev.map((chat) => {
+              if (chat.id !== currentChatId) return chat;
+              return {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === aiMessageId
+                    ? {
+                        ...msg,
+                        content: '오류가 발생했습니다. 다시 시도해주세요.',
+                        streaming: false,
+                      }
+                    : msg,
+                ),
+              };
+            }),
+          );
+        },
       );
-      setIsThinking(false);
-    }, 1500);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleNewChat = () => {
