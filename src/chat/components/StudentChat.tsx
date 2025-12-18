@@ -1,89 +1,69 @@
-import { useState } from 'react';
-import { Send, Lightbulb, AlertCircle, CheckCircle2, Brain, MessageSquare, Plus, Search, Settings, Menu, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Brain } from 'lucide-react';
+import { ChatSidebar } from '@/chat/components/ChatSidebar';
+import { ChatMessages } from '@/chat/components/ChatMessages';
+import { ChatComposer } from '@/chat/components/ChatComposer';
+import { LearningInsights } from '@/chat/components/LearningInsights';
+import type { ChatSession, Message } from '@/chat/types';
 
-interface Message {
-  id: string;
-  role: 'user' | 'ai';
-  content: string;
-  timestamp: Date;
-  comprehensionCheck?: boolean;
-}
+const createSession = (id: string, title: string, preview: string, daysAgo = 0): ChatSession => {
+  const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+  const initialMessage: Message = {
+    id: `${id}-ai-1`,
+    role: 'ai',
+    content: preview,
+    timestamp,
+  };
 
-interface ChatSession {
-  id: string;
-  title: string;
-  lastMessage: string;
-  timestamp: Date;
-}
+  return {
+    id,
+    title,
+    lastMessage: preview,
+    timestamp,
+    messages: [initialMessage],
+    isUserSession: false,
+  };
+};
+
+const initialChatSessions: ChatSession[] = [
+  createSession('1', 'TypeScript React 환경 설정', 'TypeScript와 React를 함께 사용하려면 tsconfig 설정부터 맞춰볼까요?'),
+  createSession('2', 'LangChain vs LangGraph', 'LangChain과 LangGraph의 차이점을 단계별로 비교해드릴게요.', 1),
+  createSession('3', 'Spring AI vs FastAPI', '성능과 개발 생산성 측면에서 어떤 프레임워크가 나을까요?', 2),
+  createSession('4', 'Spring AI LangGraph 통합', 'Spring AI에 LangGraph를 연결하는 순서를 정리해보겠습니다.', 3),
+  createSession('5', 'MongoDB 데이터 모델링 패턴', '도큐먼트 구조를 어떻게 나눠야 할지 함께 설계해볼까요?', 4),
+  createSession('6', '백엔드 아키텍처 설계', '확장 가능한 모듈형 아키텍처를 구성하는 법을 알려드릴게요.', 5),
+  createSession('7', '채팅 기록 저장 DB', '채팅 로그를 안정적으로 저장하는 DB 스키마를 살펴볼까요?', 6),
+];
 
 export function StudentChat() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'ai',
-      content: '안녕하세요! 저는 여러분의 AI 러닝 파트너입니다. 단순히 답을 알려드리는 것이 아니라, 스스로 생각하고 문제를 해결할 수 있도록 도와드릴게요. 무엇을 배우고 싶으신가요?',
-      timestamp: new Date(),
-    },
-  ]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(initialChatSessions);
+  const [activeChatId, setActiveChatId] = useState(() => initialChatSessions[0]?.id ?? '1');
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeChatId, setActiveChatId] = useState('1');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock chat sessions
-  const [chatSessions] = useState<ChatSession[]>([
-    {
-      id: '1',
-      title: 'TypeScript React 환경 설정',
-      lastMessage: 'TypeScript와 React를 함께 사용하려면...',
-      timestamp: new Date(),
-    },
-    {
-      id: '2',
-      title: 'LangChain vs LangGraph',
-      lastMessage: 'LangChain과 LangGraph의 차이점에 대해...',
-      timestamp: new Date(Date.now() - 86400000), // 1 day ago
-    },
-    {
-      id: '3',
-      title: 'Spring AI vs FastAPI',
-      lastMessage: 'Spring AI와 FastAPI의 장단점을...',
-      timestamp: new Date(Date.now() - 172800000), // 2 days ago
-    },
-    {
-      id: '4',
-      title: 'Spring AI LangGraph 통합',
-      lastMessage: 'Spring AI에서 LangGraph를 통합하는 방법...',
-      timestamp: new Date(Date.now() - 259200000), // 3 days ago
-    },
-    {
-      id: '5',
-      title: 'MongoDB 데이터 모델링 패턴',
-      lastMessage: 'MongoDB에서 효율적인 데이터 모델링...',
-      timestamp: new Date(Date.now() - 345600000), // 4 days ago
-    },
-    {
-      id: '6',
-      title: '백엔드 아키텍처 설계',
-      lastMessage: '확장 가능한 백엔드 아키텍처를...',
-      timestamp: new Date(Date.now() - 432000000), // 5 days ago
-    },
-    {
-      id: '7',
-      title: '채팅 기록 저장 DB',
-      lastMessage: '채팅 기록을 효율적으로 저장하려면...',
-      timestamp: new Date(Date.now() - 518400000), // 6 days ago
-    },
-  ]);
-
-  const filteredChats = chatSessions.filter(chat =>
-    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const activeChat = useMemo(
+    () => chatSessions.find((chat) => chat.id === activeChatId) ?? chatSessions[0],
+    [activeChatId, chatSessions],
   );
+  const messages = activeChat?.messages ?? [];
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const filteredChats = useMemo(() => {
+    const visibleChats = chatSessions.filter(
+      (chat) =>
+        !chat.isUserSession || chat.messages.some((message) => message.role === 'user'),
+    );
 
+    return visibleChats.filter((chat) =>
+      chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [chatSessions, searchQuery]);
+
+  const handleSend = () => {
+    if (!input.trim() || !activeChat) return;
+
+    const currentChatId = activeChat.id;
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -91,11 +71,21 @@ export function StudentChat() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setChatSessions((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== currentChatId) return chat;
+        const updatedMessages = [...chat.messages, userMessage];
+        return {
+          ...chat,
+          messages: updatedMessages,
+          lastMessage: userMessage.content,
+          timestamp: userMessage.timestamp,
+        };
+      }),
+    );
     setInput('');
     setIsThinking(true);
 
-    // Simulate AI response
     setTimeout(() => {
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -104,27 +94,86 @@ export function StudentChat() {
         timestamp: new Date(),
         comprehensionCheck: true,
       };
-      setMessages((prev) => [...prev, aiMessage]);
+
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === currentChatId
+            ? {
+                ...chat,
+                messages: [...chat.messages, aiMessage],
+                lastMessage: aiMessage.content,
+                timestamp: aiMessage.timestamp,
+              }
+            : chat,
+        ),
+      );
       setIsThinking(false);
     }, 1500);
   };
 
   const handleNewChat = () => {
-    setMessages([
-      {
-        id: Date.now().toString(),
-        role: 'ai',
-        content: '안녕하세요! 저는 여러분의 AI 러닝 파트너입니다. 단순히 답을 알려드리는 것이 아니라, 스스로 생각하고 문제를 해결할 수 있도록 도와드릴게요. 무엇을 배우고 싶으신가요?',
-        timestamp: new Date(),
-      },
-    ]);
-    setActiveChatId(Date.now().toString());
+    const newId = Date.now().toString();
+    const timestamp = new Date();
+    const greeting: Message = {
+      id: `${newId}-ai`,
+      role: 'ai',
+      content: '안녕하세요! 어떤 주제든 단계별로 이해를 도와드릴게요. 무엇을 배우고 싶으신가요?',
+      timestamp,
+    };
+
+    const existingDraft = chatSessions.find(
+      (chat) => chat.isUserSession && !chat.messages.some((message) => message.role === 'user'),
+    );
+
+    if (existingDraft) {
+      setActiveChatId(existingDraft.id);
+      setSidebarOpen(true);
+      return;
+    }
+
+    const newChat: ChatSession = {
+      id: newId,
+      title: '새 채팅',
+      lastMessage: greeting.content,
+      timestamp,
+      messages: [greeting],
+      isUserSession: true,
+    };
+
+    setChatSessions((prev) => [newChat, ...prev]);
+    setActiveChatId(newId);
+    setIsThinking(false);
+    setSidebarOpen(true);
+  };
+
+  const handleSelectChat = (id: string) => {
+    setActiveChatId(id);
+    setIsThinking(false);
+  };
+
+  const handleDeleteChat = (id: string) => {
+    setChatSessions((prev) => {
+      const next = prev.filter((chat) => chat.id !== id);
+      if (id === activeChatId) {
+        setActiveChatId(next[0]?.id ?? '');
+      }
+      return next;
+    });
+    if (id === activeChatId) {
+      setIsThinking(false);
+    }
+  };
+
+  const handleDeleteAllChats = () => {
+    setChatSessions([]);
+    setActiveChatId('');
+    setIsThinking(false);
   };
 
   const formatTimestamp = (date: Date) => {
     const now = new Date();
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return '오늘';
     if (diffInDays === 1) return '어제';
     if (diffInDays < 7) return `${diffInDays}일 전`;
@@ -133,112 +182,22 @@ export function StudentChat() {
 
   return (
     <div className="flex gap-6 h-[calc(100vh-12rem)] relative">
-      {/* Sidebar */}
-      <div
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } transition-all duration-300 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col overflow-hidden`}
-      >
-        {sidebarOpen && (
-          <>
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-gray-900 dark:text-white">채팅 목록</h3>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                </button>
-              </div>
-              
-              {/* New Chat Button */}
-              <button
-                onClick={handleNewChat}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                새 채팅
-              </button>
-            </div>
+      <ChatSidebar
+        isOpen={sidebarOpen}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        chats={filteredChats}
+        activeChatId={activeChatId}
+        onSelectChat={handleSelectChat}
+        onNewChat={handleNewChat}
+        onDeleteChat={handleDeleteChat}
+        onDeleteAllChats={handleDeleteAllChats}
+        onToggle={setSidebarOpen}
+        formatTimestamp={formatTimestamp}
+      />
 
-            {/* Search */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="채팅 검색"
-                  className="w-full pl-9 pr-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Chat List */}
-            <div className="flex-1 overflow-y-auto p-2">
-              <div className="mb-2 px-2">
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">내 채팅</p>
-              </div>
-              <div className="space-y-1">
-                {filteredChats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => setActiveChatId(chat.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors group ${
-                      activeChatId === chat.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm line-clamp-1 ${
-                          activeChatId === chat.id
-                            ? 'text-blue-700 dark:text-blue-400'
-                            : 'text-gray-900 dark:text-gray-100'
-                        }`}>
-                          {chat.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {formatTimestamp(chat.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sidebar Footer */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <button className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm text-gray-700 dark:text-gray-300">
-                <Settings className="w-4 h-4" />
-                설정
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Toggle Sidebar Button */}
-      {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="absolute left-0 top-4 p-2 bg-white dark:bg-gray-800 rounded-r-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors z-10"
-        >
-          <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        </button>
-      )}
-
-      {/* Main Content */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chat Area */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col overflow-hidden">
-          {/* Chat Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
             <div className="flex items-center gap-3">
               <Brain className="w-6 h-6" />
@@ -249,140 +208,11 @@ export function StudentChat() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <p className="whitespace-pre-line">{message.content}</p>
-                  {message.comprehensionCheck && (
-                    <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">이해도 체크</p>
-                      <div className="flex gap-2">
-                        <button className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-lg text-sm hover:bg-green-200 dark:hover:bg-green-800 transition-colors">
-                          이해했어요 ✓
-                        </button>
-                        <button className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded-lg text-sm hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors">
-                          다시 설명해주세요
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isThinking && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                    </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">생각하는 중...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input Area */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="질문을 입력하세요..."
-                className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
+          <ChatMessages messages={messages} isThinking={isThinking} />
+          <ChatComposer value={input} onChange={setInput} onSend={handleSend} />
         </div>
 
-        {/* Learning Tips Sidebar */}
-        <div className="space-y-6">
-          {/* Current Progress */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-            <h3 className="text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-              오늘의 학습
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">질문 횟수</span>
-                  <span className="text-gray-900 dark:text-gray-100">12회</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">이해도</span>
-                  <span className="text-gray-900 dark:text-gray-100">85%</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '85%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Learning Tips */}
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl shadow-lg p-6 border border-purple-100 dark:border-purple-800">
-            <h3 className="text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-              학습 팁
-            </h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                <span className="text-gray-700 dark:text-gray-300">답을 바로 요구하지 말고, 문제 해결 과정을 질문하세요</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                <span className="text-gray-700 dark:text-gray-300">이해가 안 되면 즉시 "다시 설명해주세요"를 눌러주세요</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                <span className="text-gray-700 dark:text-gray-300">스스로 먼저 생각하고, AI는 가이드로 활용하세요</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Alert */}
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl shadow-lg p-6 border border-amber-200 dark:border-amber-800">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="text-amber-900 dark:text-amber-100 mb-1">주의하세요</h4>
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  AI가 제공하는 답변을 무조건 복사하지 말고, 이해하고 자신의 언어로 표현해보세요.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LearningInsights />
       </div>
     </div>
   );
