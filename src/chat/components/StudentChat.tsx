@@ -1,20 +1,20 @@
-import { useMemo, useState, useRef } from 'react';
-import { Brain } from 'lucide-react';
-import { ChatSidebar } from '@/chat/components/ChatSidebar';
-import { ChatMessages } from '@/chat/components/ChatMessages';
-import { ChatComposer } from '@/chat/components/ChatComposer';
-import { LearningInsights } from '@/chat/components/LearningInsights';
-import type { ChatSession, Message } from '@/chat/types';
-import { streamChat, generateChatTitle, type ChatStreamEvent } from '@/chat/api';
+import { useMemo, useState, useRef } from 'react'
+import { Brain } from 'lucide-react'
+import { ChatSidebar } from '@/chat/components/ChatSidebar'
+import { ChatMessages } from '@/chat/components/ChatMessages'
+import { ChatComposer } from '@/chat/components/ChatComposer'
+import { LearningInsights } from '@/chat/components/LearningInsights'
+import type { ChatSession, Message } from '@/chat/types'
+import { streamChat, generateChatTitle, type ChatStreamEvent } from '@/chat/api'
 
 const createSession = (id: string, title: string, preview: string, daysAgo = 0): ChatSession => {
-  const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+  const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
   const initialMessage: Message = {
     id: `${id}-ai-1`,
     role: 'ai',
     content: preview,
     timestamp,
-  };
+  }
 
   return {
     id,
@@ -23,81 +23,114 @@ const createSession = (id: string, title: string, preview: string, daysAgo = 0):
     timestamp,
     messages: [initialMessage],
     isUserSession: false,
-  };
-};
+  }
+}
 
 const initialChatSessions: ChatSession[] = [
-  createSession('1', 'TypeScript React 환경 설정', 'TypeScript와 React를 함께 사용하려면 tsconfig 설정부터 맞춰볼까요?'),
-  createSession('2', 'LangChain vs LangGraph', 'LangChain과 LangGraph의 차이점을 단계별로 비교해드릴게요.', 1),
-  createSession('3', 'Spring AI vs FastAPI', '성능과 개발 생산성 측면에서 어떤 프레임워크가 나을까요?', 2),
-  createSession('4', 'Spring AI LangGraph 통합', 'Spring AI에 LangGraph를 연결하는 순서를 정리해보겠습니다.', 3),
-  createSession('5', 'MongoDB 데이터 모델링 패턴', '도큐먼트 구조를 어떻게 나눠야 할지 함께 설계해볼까요?', 4),
-  createSession('6', '백엔드 아키텍처 설계', '확장 가능한 모듈형 아키텍처를 구성하는 법을 알려드릴게요.', 5),
-  createSession('7', '채팅 기록 저장 DB', '채팅 로그를 안정적으로 저장하는 DB 스키마를 살펴볼까요?', 6),
-];
+  createSession(
+    '1',
+    'TypeScript React 환경 설정',
+    'TypeScript와 React를 함께 사용하려면 tsconfig 설정부터 맞춰볼까요?',
+  ),
+  createSession(
+    '2',
+    'LangChain vs LangGraph',
+    'LangChain과 LangGraph의 차이점을 단계별로 비교해드릴게요.',
+    1,
+  ),
+  createSession(
+    '3',
+    'Spring AI vs FastAPI',
+    '성능과 개발 생산성 측면에서 어떤 프레임워크가 나을까요?',
+    2,
+  ),
+  createSession(
+    '4',
+    'Spring AI LangGraph 통합',
+    'Spring AI에 LangGraph를 연결하는 순서를 정리해보겠습니다.',
+    3,
+  ),
+  createSession(
+    '5',
+    'MongoDB 데이터 모델링 패턴',
+    '도큐먼트 구조를 어떻게 나눠야 할지 함께 설계해볼까요?',
+    4,
+  ),
+  createSession(
+    '6',
+    '백엔드 아키텍처 설계',
+    '확장 가능한 모듈형 아키텍처를 구성하는 법을 알려드릴게요.',
+    5,
+  ),
+  createSession(
+    '7',
+    '채팅 기록 저장 DB',
+    '채팅 로그를 안정적으로 저장하는 DB 스키마를 살펴볼까요?',
+    6,
+  ),
+]
 
 export function StudentChat() {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>(initialChatSessions);
-  const [activeChatId, setActiveChatId] = useState(() => initialChatSessions[0]?.id ?? '1');
-  const [input, setInput] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const titleGenerationInProgress = useRef<Set<string>>(new Set());
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(initialChatSessions)
+  const [activeChatId, setActiveChatId] = useState(() => initialChatSessions[0]?.id ?? '1')
+  const [input, setInput] = useState('')
+  const [isThinking, setIsThinking] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const titleGenerationInProgress = useRef<Set<string>>(new Set())
 
   const activeChat = useMemo(
     () => chatSessions.find((chat) => chat.id === activeChatId) ?? chatSessions[0],
     [activeChatId, chatSessions],
-  );
-  const messages = activeChat?.messages ?? [];
-  const sessionCompleted = activeChat?.status === 'completed';
-  const reportStatus = activeChat?.reportStatus;
-  const reportMarkdown = activeChat?.reportMarkdown;
+  )
+  const messages = activeChat?.messages ?? []
+  const sessionCompleted = activeChat?.status === 'completed'
+  const reportStatus = activeChat?.reportStatus
+  const reportMarkdown = activeChat?.reportMarkdown
 
   const filteredChats = useMemo(() => {
     const visibleChats = chatSessions.filter(
-      (chat) =>
-        !chat.isUserSession || chat.messages.some((message) => message.role === 'user'),
-    );
+      (chat) => !chat.isUserSession || chat.messages.some((message) => message.role === 'user'),
+    )
 
     return visibleChats.filter((chat) =>
       chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
-  }, [chatSessions, searchQuery]);
+    )
+  }, [chatSessions, searchQuery])
 
-  const getSessionId = (chat: ChatSession) => chat.sessionId || chat.id;
+  const getSessionId = (chat: ChatSession) => chat.sessionId || chat.id
 
   const parseEventData = (payload: string): unknown => {
     try {
-      return JSON.parse(payload);
+      return JSON.parse(payload)
     } catch {
-      return payload;
+      return payload
     }
-  };
+  }
 
   const extractSessionId = (data: unknown): string | undefined => {
-    if (!data || typeof data !== 'object') return undefined;
-    const record = data as Record<string, unknown>;
-    if (typeof record.session_id === 'string') return record.session_id;
-    if (typeof record.sessionId === 'string') return record.sessionId;
-    return undefined;
-  };
+    if (!data || typeof data !== 'object') return undefined
+    const record = data as Record<string, unknown>
+    if (typeof record.session_id === 'string') return record.session_id
+    if (typeof record.sessionId === 'string') return record.sessionId
+    return undefined
+  }
 
   const extractMarkdown = (data: unknown, fallback: string) => {
-    if (typeof data === 'string') return data || fallback;
-    if (!data || typeof data !== 'object') return fallback;
-    const record = data as Record<string, unknown>;
-    if (typeof record.markdown === 'string') return record.markdown;
-    if (typeof record.content === 'string') return record.content;
-    return fallback;
-  };
+    if (typeof data === 'string') return data || fallback
+    if (!data || typeof data !== 'object') return fallback
+    const record = data as Record<string, unknown>
+    if (typeof record.markdown === 'string') return record.markdown
+    if (typeof record.content === 'string') return record.content
+    return fallback
+  }
 
   const handleStreamEvent = (chatId: string, sessionId: string, event: ChatStreamEvent) => {
-    if (!event.event) return;
+    if (!event.event) return
 
-    const payload = parseEventData(event.data);
-    const targetSessionId = extractSessionId(payload);
-    if (targetSessionId && targetSessionId !== sessionId) return;
+    const payload = parseEventData(event.data)
+    const targetSessionId = extractSessionId(payload)
+    if (targetSessionId && targetSessionId !== sessionId) return
 
     if (event.event === 'chat_end') {
       setChatSessions((prev) =>
@@ -110,12 +143,12 @@ export function StudentChat() {
               }
             : chat,
         ),
-      );
-      return;
+      )
+      return
     }
 
     if (event.event === 'report') {
-      const markdown = extractMarkdown(payload, event.data);
+      const markdown = extractMarkdown(payload, event.data)
       setChatSessions((prev) =>
         prev.map((chat) =>
           chat.id === chatId
@@ -127,8 +160,8 @@ export function StudentChat() {
               }
             : chat,
         ),
-      );
-      return;
+      )
+      return
     }
 
     if (event.event === 'report_error') {
@@ -142,52 +175,52 @@ export function StudentChat() {
               }
             : chat,
         ),
-      );
+      )
     }
-  };
+  }
 
-  const generateTitleInBackground = async (chatId: string, firstMessage: string, sessionId: string) => {
-    if (titleGenerationInProgress.current.has(chatId)) return;
+  const generateTitleInBackground = async (
+    chatId: string,
+    firstMessage: string,
+    sessionId: string,
+  ) => {
+    if (titleGenerationInProgress.current.has(chatId)) return
 
-    titleGenerationInProgress.current.add(chatId);
+    titleGenerationInProgress.current.add(chatId)
 
     try {
       const title = await generateChatTitle({
         message: firstMessage,
         sessionId,
-      });
+      })
 
       setChatSessions((prev) =>
-        prev.map((chat) =>
-          chat.id === chatId
-            ? { ...chat, title }
-            : chat,
-        ),
-      );
+        prev.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
+      )
     } catch (error) {
-      console.error('Failed to generate title:', error);
+      console.error('Failed to generate title:', error)
     } finally {
-      titleGenerationInProgress.current.delete(chatId);
+      titleGenerationInProgress.current.delete(chatId)
     }
-  };
+  }
 
   const handleSend = async () => {
-    if (!input.trim() || !activeChat || activeChat.status === 'completed') return;
+    if (!input.trim() || !activeChat || activeChat.status === 'completed') return
 
-    const currentChatId = activeChat.id;
-    const isFirstMessage = activeChat.messages.filter((msg) => msg.role === 'user').length === 0;
-    const userMessageContent = input;
+    const currentChatId = activeChat.id
+    const isFirstMessage = activeChat.messages.filter((msg) => msg.role === 'user').length === 0
+    const userMessageContent = input
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: userMessageContent,
       timestamp: new Date(),
-    };
+    }
 
     setChatSessions((prev) =>
       prev.map((chat) => {
-        if (chat.id !== currentChatId) return chat;
-        const updatedMessages = [...chat.messages, userMessage];
+        if (chat.id !== currentChatId) return chat
+        const updatedMessages = [...chat.messages, userMessage]
         return {
           ...chat,
           messages: updatedMessages,
@@ -195,20 +228,20 @@ export function StudentChat() {
           timestamp: userMessage.timestamp,
           status: 'active',
           reportStatus: chat.reportStatus ?? 'idle',
-        };
+        }
       }),
-    );
-    setInput('');
-    setIsThinking(true);
+    )
+    setInput('')
+    setIsThinking(true)
 
-    const aiMessageId = (Date.now() + 1).toString();
+    const aiMessageId = (Date.now() + 1).toString()
     const aiMessage: Message = {
       id: aiMessageId,
       role: 'ai',
       content: '',
       timestamp: new Date(),
       streaming: true,
-    };
+    }
 
     setChatSessions((prev) =>
       prev.map((chat) =>
@@ -219,10 +252,10 @@ export function StudentChat() {
             }
           : chat,
       ),
-    );
-    setIsThinking(false);
+    )
+    setIsThinking(false)
 
-    const sessionId = getSessionId(activeChat);
+    const sessionId = getSessionId(activeChat)
 
     try {
       await streamChat(
@@ -235,46 +268,43 @@ export function StudentChat() {
           onChunk: (chunk) => {
             setChatSessions((prev) =>
               prev.map((chat) => {
-                if (chat.id !== currentChatId) return chat;
+                if (chat.id !== currentChatId) return chat
                 return {
                   ...chat,
                   messages: chat.messages.map((msg) =>
-                    msg.id === aiMessageId
-                      ? { ...msg, content: msg.content + chunk }
-                      : msg,
+                    msg.id === aiMessageId ? { ...msg, content: msg.content + chunk } : msg,
                   ),
                   lastMessage:
-                    chat.messages.find((msg) => msg.id === aiMessageId)?.content || chat.lastMessage,
+                    chat.messages.find((msg) => msg.id === aiMessageId)?.content ||
+                    chat.lastMessage,
                   timestamp: new Date(),
-                };
+                }
               }),
-            );
+            )
           },
           onEvent: (event) => handleStreamEvent(currentChatId, sessionId, event),
           onComplete: () => {
             setChatSessions((prev) =>
               prev.map((chat) => {
-                if (chat.id !== currentChatId) return chat;
+                if (chat.id !== currentChatId) return chat
                 return {
                   ...chat,
                   messages: chat.messages.map((msg) =>
-                    msg.id === aiMessageId
-                      ? { ...msg, streaming: false }
-                      : msg,
+                    msg.id === aiMessageId ? { ...msg, streaming: false } : msg,
                   ),
-                };
+                }
               }),
-            );
+            )
 
             if (isFirstMessage && activeChat.title === '새 채팅') {
-              generateTitleInBackground(currentChatId, userMessageContent, sessionId);
+              generateTitleInBackground(currentChatId, userMessageContent, sessionId)
             }
           },
           onError: (error) => {
-            console.error('Chat streaming error:', error);
+            console.error('Chat streaming error:', error)
             setChatSessions((prev) =>
               prev.map((chat) => {
-                if (chat.id !== currentChatId) return chat;
+                if (chat.id !== currentChatId) return chat
                 return {
                   ...chat,
                   messages: chat.messages.map((msg) =>
@@ -286,35 +316,35 @@ export function StudentChat() {
                         }
                       : msg,
                   ),
-                };
+                }
               }),
-            );
+            )
           },
         },
-      );
+      )
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('Failed to send message:', error)
     }
-  };
+  }
 
   const handleNewChat = () => {
-    const newId = Date.now().toString();
-    const timestamp = new Date();
+    const newId = Date.now().toString()
+    const timestamp = new Date()
     const greeting: Message = {
       id: `${newId}-ai`,
       role: 'ai',
       content: '안녕하세요! 어떤 주제든 단계별로 이해를 도와드릴게요. 무엇을 배우고 싶으신가요?',
       timestamp,
-    };
+    }
 
     const existingDraft = chatSessions.find(
       (chat) => chat.isUserSession && !chat.messages.some((message) => message.role === 'user'),
-    );
+    )
 
     if (existingDraft) {
-      setActiveChatId(existingDraft.id);
-      setSidebarOpen(true);
-      return;
+      setActiveChatId(existingDraft.id)
+      setSidebarOpen(true)
+      return
     }
 
     const newChat: ChatSession = {
@@ -326,47 +356,28 @@ export function StudentChat() {
       isUserSession: true,
       status: 'active',
       reportStatus: 'idle',
-    };
+    }
 
-    setChatSessions((prev) => [newChat, ...prev]);
-    setActiveChatId(newId);
-    setIsThinking(false);
-    setSidebarOpen(true);
-  };
+    setChatSessions((prev) => [newChat, ...prev])
+    setActiveChatId(newId)
+    setIsThinking(false)
+    setSidebarOpen(true)
+  }
 
   const handleSelectChat = (id: string) => {
-    setActiveChatId(id);
-    setIsThinking(false);
-  };
-
-  const handleDeleteChat = (id: string) => {
-    setChatSessions((prev) => {
-      const next = prev.filter((chat) => chat.id !== id);
-      if (id === activeChatId) {
-        setActiveChatId(next[0]?.id ?? '');
-      }
-      return next;
-    });
-    if (id === activeChatId) {
-      setIsThinking(false);
-    }
-  };
-
-  const handleDeleteAllChats = () => {
-    setChatSessions([]);
-    setActiveChatId('');
-    setIsThinking(false);
-  };
+    setActiveChatId(id)
+    setIsThinking(false)
+  }
 
   const formatTimestamp = (date: Date) => {
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const now = new Date()
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (diffInDays === 0) return '오늘';
-    if (diffInDays === 1) return '어제';
-    if (diffInDays < 7) return `${diffInDays}일 전`;
-    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-  };
+    if (diffInDays === 0) return '오늘'
+    if (diffInDays === 1) return '어제'
+    if (diffInDays < 7) return `${diffInDays}일 전`
+    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+  }
 
   return (
     <div className="flex gap-6 h-[calc(100vh-12rem)] relative">
@@ -378,8 +389,6 @@ export function StudentChat() {
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
-        onDeleteChat={handleDeleteChat}
-        onDeleteAllChats={handleDeleteAllChats}
         onToggle={setSidebarOpen}
         formatTimestamp={formatTimestamp}
       />
@@ -403,11 +412,16 @@ export function StudentChat() {
             reportStatus={reportStatus}
             reportMarkdown={reportMarkdown}
           />
-          <ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={sessionCompleted} />
+          <ChatComposer
+            value={input}
+            onChange={setInput}
+            onSend={handleSend}
+            disabled={sessionCompleted}
+          />
         </div>
 
         <LearningInsights />
       </div>
     </div>
-  );
+  )
 }
