@@ -6,6 +6,9 @@ import type {
   GetQuestionTypesResponse,
   GetStudentsResponse,
   GetStudentDetailResponse,
+  KeywordFrequency,
+  TopicQuestionSummary,
+  KeywordQuestion,
 } from '../types/api'
 
 export const dashboardAPI: DashboardAPIService = {
@@ -39,6 +42,27 @@ export const dashboardAPI: DashboardAPIService = {
     const response = await apiClient.get<GetStudentDetailResponse>(
       `/dashboard/students/${studentId}`,
     )
+    return response.data
+  },
+
+  async getKeywordFrequencies(params) {
+    const response = await apiClient.get<KeywordFrequency[]>('/dashboard/keywords', {
+      params,
+    })
+    return response.data
+  },
+
+  async getTopicQuestionSummaries(params) {
+    const response = await apiClient.get<TopicQuestionSummary[]>('/dashboard/topics', {
+      params,
+    })
+    return response.data
+  },
+
+  async getKeywordQuestions(params) {
+    const response = await apiClient.get<KeywordQuestion[]>('/dashboard/questions', {
+      params,
+    })
     return response.data
   },
 }
