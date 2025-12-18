@@ -4,6 +4,7 @@ export interface Message {
   content: string
   timestamp: Date
   comprehensionCheck?: boolean
+  streaming?: boolean
 }
 
 export interface ChatSession {
@@ -13,4 +14,9 @@ export interface ChatSession {
   timestamp: Date
   messages: Message[]
   isUserSession?: boolean
+  userId?: string
+  sessionId?: string
+  status?: 'active' | 'completed'
+  reportStatus?: 'idle' | 'loading' | 'ready' | 'error'
+  reportMarkdown?: string
 }

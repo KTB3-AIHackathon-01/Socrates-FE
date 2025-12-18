@@ -10,10 +10,13 @@ interface ChatComposerProps {
 export function ChatComposer({ value, onChange, onSend }: ChatComposerProps) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        onSend()
-      }
+      if (event.key !== 'Enter') return
+
+      const isComposing = event.nativeEvent.isComposing || event.isComposing
+      if (isComposing) return
+
+      event.preventDefault()
+      onSend()
     },
     [onSend],
   )
