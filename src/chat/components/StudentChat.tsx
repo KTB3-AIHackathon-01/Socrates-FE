@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useRef, useEffect, act } from 'react'
 import { Brain } from 'lucide-react'
 import { ChatSidebar } from '@/chat/components/ChatSidebar'
 import { ChatMessages } from '@/chat/components/ChatMessages'
@@ -137,6 +137,9 @@ export function StudentChat() {
         message: firstMessage,
         sessionId,
       })
+
+      const response = await chatAPI.createSession({ sessionId, studentId, name: title })
+      setNewChatSessions((prev) => [response, ...prev])
 
       setChatSessions((prev) =>
         prev.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
