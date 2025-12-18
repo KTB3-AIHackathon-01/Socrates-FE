@@ -12,7 +12,7 @@ export function ChatComposer({ value, onChange, onSend }: ChatComposerProps) {
     (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key !== 'Enter') return
 
-      const isComposing = event.nativeEvent.isComposing || event.isComposing
+      const isComposing = event.nativeEvent.isComposing
       if (isComposing) return
 
       event.preventDefault()
