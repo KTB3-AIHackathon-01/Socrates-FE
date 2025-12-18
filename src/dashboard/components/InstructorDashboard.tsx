@@ -62,7 +62,6 @@ export function InstructorDashboard() {
 
       try {
         const response = await dashboardAPI.getDashboard({ instructorId })
-        console.log(response)
         if (!isActive) return
         setDashboard(response)
       } catch {
