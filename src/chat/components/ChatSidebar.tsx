@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Search, Settings, Menu, X } from 'lucide-react'
+import { MessageSquare, Plus, Search, Menu, Trash2, X } from 'lucide-react'
 import type { ChatSession } from '@/chat/types'
 
 interface ChatSidebarProps {
@@ -9,6 +9,8 @@ interface ChatSidebarProps {
   activeChatId: string
   onSelectChat: (id: string) => void
   onNewChat: () => void
+  onDeleteChat: (id: string) => void
+  onDeleteAllChats: () => void
   onToggle: (open: boolean) => void
   formatTimestamp: (date: Date) => string
 }
@@ -21,6 +23,8 @@ export function ChatSidebar({
   activeChatId,
   onSelectChat,
   onNewChat,
+  onDeleteChat,
+  onDeleteAllChats,
   onToggle,
   formatTimestamp,
 }: ChatSidebarProps) {
@@ -72,41 +76,49 @@ export function ChatSidebar({
               </div>
               <div className="space-y-1">
                 {chats.map((chat) => (
-                  <button
+                  <div
                     key={chat.id}
-                    onClick={() => onSelectChat(chat.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors group ${
-                      activeChatId === chat.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
+                      activeChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     }`}
                   >
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm line-clamp-1 ${
-                            activeChatId === chat.id
-                              ? 'text-blue-700 dark:text-blue-400'
-                              : 'text-gray-900 dark:text-gray-100'
-                          }`}
-                        >
-                          {chat.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {formatTimestamp(chat.timestamp)}
-                        </p>
+                    <button
+                      onClick={() => onSelectChat(chat.id)}
+                      className={`flex-1 text-left px-1 py-1 rounded-lg transition-colors focus:outline-none ${
+                        activeChatId === chat.id
+                          ? 'text-blue-700 dark:text-blue-400'
+                          : 'text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm line-clamp-1">{chat.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {formatTimestamp(chat.timestamp)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      onClick={() => onDeleteChat(chat.id)}
+                      className="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors"
+                      aria-label={`${chat.title} 삭제`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
 
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <button className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm text-gray-700 dark:text-gray-300">
-                <Settings className="w-4 h-4" />
-                설정
+              <button
+                onClick={onDeleteAllChats}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30"
+              >
+                <Trash2 className="w-4 h-4" />
+                전체 삭제
               </button>
             </div>
           </>

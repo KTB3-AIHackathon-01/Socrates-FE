@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Brain } from 'lucide-react';
 import { ChatSidebar } from '@/chat/components/ChatSidebar';
 import { ChatMessages } from '@/chat/components/ChatMessages';
@@ -6,74 +6,64 @@ import { ChatComposer } from '@/chat/components/ChatComposer';
 import { LearningInsights } from '@/chat/components/LearningInsights';
 import type { ChatSession, Message } from '@/chat/types';
 
+const createSession = (id: string, title: string, preview: string, daysAgo = 0): ChatSession => {
+  const timestamp = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+  const initialMessage: Message = {
+    id: `${id}-ai-1`,
+    role: 'ai',
+    content: preview,
+    timestamp,
+  };
+
+  return {
+    id,
+    title,
+    lastMessage: preview,
+    timestamp,
+    messages: [initialMessage],
+    isUserSession: false,
+  };
+};
+
+const initialChatSessions: ChatSession[] = [
+  createSession('1', 'TypeScript React 환경 설정', 'TypeScript와 React를 함께 사용하려면 tsconfig 설정부터 맞춰볼까요?'),
+  createSession('2', 'LangChain vs LangGraph', 'LangChain과 LangGraph의 차이점을 단계별로 비교해드릴게요.', 1),
+  createSession('3', 'Spring AI vs FastAPI', '성능과 개발 생산성 측면에서 어떤 프레임워크가 나을까요?', 2),
+  createSession('4', 'Spring AI LangGraph 통합', 'Spring AI에 LangGraph를 연결하는 순서를 정리해보겠습니다.', 3),
+  createSession('5', 'MongoDB 데이터 모델링 패턴', '도큐먼트 구조를 어떻게 나눠야 할지 함께 설계해볼까요?', 4),
+  createSession('6', '백엔드 아키텍처 설계', '확장 가능한 모듈형 아키텍처를 구성하는 법을 알려드릴게요.', 5),
+  createSession('7', '채팅 기록 저장 DB', '채팅 로그를 안정적으로 저장하는 DB 스키마를 살펴볼까요?', 6),
+];
+
 export function StudentChat() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'ai',
-      content: '안녕하세요! 저는 여러분의 AI 러닝 파트너입니다. 단순히 답을 알려드리는 것이 아니라, 스스로 생각하고 문제를 해결할 수 있도록 도와드릴게요. 무엇을 배우고 싶으신가요?',
-      timestamp: new Date(),
-    },
-  ]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(initialChatSessions);
+  const [activeChatId, setActiveChatId] = useState(() => initialChatSessions[0]?.id ?? '1');
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeChatId, setActiveChatId] = useState('1');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock chat sessions
-  const [chatSessions] = useState<ChatSession[]>([
-    {
-      id: '1',
-      title: 'TypeScript React 환경 설정',
-      lastMessage: 'TypeScript와 React를 함께 사용하려면...',
-      timestamp: new Date(),
-    },
-    {
-      id: '2',
-      title: 'LangChain vs LangGraph',
-      lastMessage: 'LangChain과 LangGraph의 차이점에 대해...',
-      timestamp: new Date(Date.now() - 86400000), // 1 day ago
-    },
-    {
-      id: '3',
-      title: 'Spring AI vs FastAPI',
-      lastMessage: 'Spring AI와 FastAPI의 장단점을...',
-      timestamp: new Date(Date.now() - 172800000), // 2 days ago
-    },
-    {
-      id: '4',
-      title: 'Spring AI LangGraph 통합',
-      lastMessage: 'Spring AI에서 LangGraph를 통합하는 방법...',
-      timestamp: new Date(Date.now() - 259200000), // 3 days ago
-    },
-    {
-      id: '5',
-      title: 'MongoDB 데이터 모델링 패턴',
-      lastMessage: 'MongoDB에서 효율적인 데이터 모델링...',
-      timestamp: new Date(Date.now() - 345600000), // 4 days ago
-    },
-    {
-      id: '6',
-      title: '백엔드 아키텍처 설계',
-      lastMessage: '확장 가능한 백엔드 아키텍처를...',
-      timestamp: new Date(Date.now() - 432000000), // 5 days ago
-    },
-    {
-      id: '7',
-      title: '채팅 기록 저장 DB',
-      lastMessage: '채팅 기록을 효율적으로 저장하려면...',
-      timestamp: new Date(Date.now() - 518400000), // 6 days ago
-    },
-  ]);
-
-  const filteredChats = chatSessions.filter(chat =>
-    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const activeChat = useMemo(
+    () => chatSessions.find((chat) => chat.id === activeChatId) ?? chatSessions[0],
+    [activeChatId, chatSessions],
   );
+  const messages = activeChat?.messages ?? [];
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const filteredChats = useMemo(() => {
+    const visibleChats = chatSessions.filter(
+      (chat) =>
+        !chat.isUserSession || chat.messages.some((message) => message.role === 'user'),
+    );
 
+    return visibleChats.filter((chat) =>
+      chat.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [chatSessions, searchQuery]);
+
+  const handleSend = () => {
+    if (!input.trim() || !activeChat) return;
+
+    const currentChatId = activeChat.id;
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -81,11 +71,21 @@ export function StudentChat() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setChatSessions((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== currentChatId) return chat;
+        const updatedMessages = [...chat.messages, userMessage];
+        return {
+          ...chat,
+          messages: updatedMessages,
+          lastMessage: userMessage.content,
+          timestamp: userMessage.timestamp,
+        };
+      }),
+    );
     setInput('');
     setIsThinking(true);
 
-    // Simulate AI response
     setTimeout(() => {
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -94,27 +94,86 @@ export function StudentChat() {
         timestamp: new Date(),
         comprehensionCheck: true,
       };
-      setMessages((prev) => [...prev, aiMessage]);
+
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === currentChatId
+            ? {
+                ...chat,
+                messages: [...chat.messages, aiMessage],
+                lastMessage: aiMessage.content,
+                timestamp: aiMessage.timestamp,
+              }
+            : chat,
+        ),
+      );
       setIsThinking(false);
     }, 1500);
   };
 
   const handleNewChat = () => {
-    setMessages([
-      {
-        id: Date.now().toString(),
-        role: 'ai',
-        content: '안녕하세요! 저는 여러분의 AI 러닝 파트너입니다. 단순히 답을 알려드리는 것이 아니라, 스스로 생각하고 문제를 해결할 수 있도록 도와드릴게요. 무엇을 배우고 싶으신가요?',
-        timestamp: new Date(),
-      },
-    ]);
-    setActiveChatId(Date.now().toString());
+    const newId = Date.now().toString();
+    const timestamp = new Date();
+    const greeting: Message = {
+      id: `${newId}-ai`,
+      role: 'ai',
+      content: '안녕하세요! 어떤 주제든 단계별로 이해를 도와드릴게요. 무엇을 배우고 싶으신가요?',
+      timestamp,
+    };
+
+    const existingDraft = chatSessions.find(
+      (chat) => chat.isUserSession && !chat.messages.some((message) => message.role === 'user'),
+    );
+
+    if (existingDraft) {
+      setActiveChatId(existingDraft.id);
+      setSidebarOpen(true);
+      return;
+    }
+
+    const newChat: ChatSession = {
+      id: newId,
+      title: '새 채팅',
+      lastMessage: greeting.content,
+      timestamp,
+      messages: [greeting],
+      isUserSession: true,
+    };
+
+    setChatSessions((prev) => [newChat, ...prev]);
+    setActiveChatId(newId);
+    setIsThinking(false);
+    setSidebarOpen(true);
+  };
+
+  const handleSelectChat = (id: string) => {
+    setActiveChatId(id);
+    setIsThinking(false);
+  };
+
+  const handleDeleteChat = (id: string) => {
+    setChatSessions((prev) => {
+      const next = prev.filter((chat) => chat.id !== id);
+      if (id === activeChatId) {
+        setActiveChatId(next[0]?.id ?? '');
+      }
+      return next;
+    });
+    if (id === activeChatId) {
+      setIsThinking(false);
+    }
+  };
+
+  const handleDeleteAllChats = () => {
+    setChatSessions([]);
+    setActiveChatId('');
+    setIsThinking(false);
   };
 
   const formatTimestamp = (date: Date) => {
     const now = new Date();
     const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return '오늘';
     if (diffInDays === 1) return '어제';
     if (diffInDays < 7) return `${diffInDays}일 전`;
@@ -129,8 +188,10 @@ export function StudentChat() {
         onSearchChange={setSearchQuery}
         chats={filteredChats}
         activeChatId={activeChatId}
-        onSelectChat={setActiveChatId}
+        onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
+        onDeleteChat={handleDeleteChat}
+        onDeleteAllChats={handleDeleteAllChats}
         onToggle={setSidebarOpen}
         formatTimestamp={formatTimestamp}
       />

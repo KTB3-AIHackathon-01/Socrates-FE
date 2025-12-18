@@ -11,4 +11,6 @@ export interface ChatSession {
   title: string
   lastMessage: string
   timestamp: Date
+  messages: Message[]
+  isUserSession?: boolean
 }
