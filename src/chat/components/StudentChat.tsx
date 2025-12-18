@@ -1,20 +1,10 @@
 import { useState } from 'react';
-import { Send, Lightbulb, AlertCircle, CheckCircle2, Brain, MessageSquare, Plus, Search, Settings, Menu, X } from 'lucide-react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'ai';
-  content: string;
-  timestamp: Date;
-  comprehensionCheck?: boolean;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  lastMessage: string;
-  timestamp: Date;
-}
+import { Brain } from 'lucide-react';
+import { ChatSidebar } from '@/chat/components/ChatSidebar';
+import { ChatMessages } from '@/chat/components/ChatMessages';
+import { ChatComposer } from '@/chat/components/ChatComposer';
+import { LearningInsights } from '@/chat/components/LearningInsights';
+import type { ChatSession, Message } from '@/chat/types';
 
 export function StudentChat() {
   const [messages, setMessages] = useState<Message[]>([
@@ -133,112 +123,20 @@ export function StudentChat() {
 
   return (
     <div className="flex gap-6 h-[calc(100vh-12rem)] relative">
-      {/* Sidebar */}
-      <div
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } transition-all duration-300 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col overflow-hidden`}
-      >
-        {sidebarOpen && (
-          <>
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-gray-900 dark:text-white">채팅 목록</h3>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                </button>
-              </div>
-              
-              {/* New Chat Button */}
-              <button
-                onClick={handleNewChat}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                새 채팅
-              </button>
-            </div>
+      <ChatSidebar
+        isOpen={sidebarOpen}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        chats={filteredChats}
+        activeChatId={activeChatId}
+        onSelectChat={setActiveChatId}
+        onNewChat={handleNewChat}
+        onToggle={setSidebarOpen}
+        formatTimestamp={formatTimestamp}
+      />
 
-            {/* Search */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="채팅 검색"
-                  className="w-full pl-9 pr-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Chat List */}
-            <div className="flex-1 overflow-y-auto p-2">
-              <div className="mb-2 px-2">
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">내 채팅</p>
-              </div>
-              <div className="space-y-1">
-                {filteredChats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => setActiveChatId(chat.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors group ${
-                      activeChatId === chat.id
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm line-clamp-1 ${
-                          activeChatId === chat.id
-                            ? 'text-blue-700 dark:text-blue-400'
-                            : 'text-gray-900 dark:text-gray-100'
-                        }`}>
-                          {chat.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {formatTimestamp(chat.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sidebar Footer */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <button className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm text-gray-700 dark:text-gray-300">
-                <Settings className="w-4 h-4" />
-                설정
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Toggle Sidebar Button */}
-      {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="absolute left-0 top-4 p-2 bg-white dark:bg-gray-800 rounded-r-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors z-10"
-        >
-          <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        </button>
-      )}
-
-      {/* Main Content */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chat Area */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col overflow-hidden">
-          {/* Chat Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
             <div className="flex items-center gap-3">
               <Brain className="w-6 h-6" />
@@ -249,140 +147,11 @@ export function StudentChat() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  <p className="whitespace-pre-line">{message.content}</p>
-                  {message.comprehensionCheck && (
-                    <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">이해도 체크</p>
-                      <div className="flex gap-2">
-                        <button className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-lg text-sm hover:bg-green-200 dark:hover:bg-green-800 transition-colors">
-                          이해했어요 ✓
-                        </button>
-                        <button className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded-lg text-sm hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors">
-                          다시 설명해주세요
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isThinking && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                    </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">생각하는 중...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input Area */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="질문을 입력하세요..."
-                className="flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
+          <ChatMessages messages={messages} isThinking={isThinking} />
+          <ChatComposer value={input} onChange={setInput} onSend={handleSend} />
         </div>
 
-        {/* Learning Tips Sidebar */}
-        <div className="space-y-6">
-          {/* Current Progress */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-            <h3 className="text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-              오늘의 학습
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">질문 횟수</span>
-                  <span className="text-gray-900 dark:text-gray-100">12회</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">이해도</span>
-                  <span className="text-gray-900 dark:text-gray-100">85%</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '85%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Learning Tips */}
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl shadow-lg p-6 border border-purple-100 dark:border-purple-800">
-            <h3 className="text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-              학습 팁
-            </h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                <span className="text-gray-700 dark:text-gray-300">답을 바로 요구하지 말고, 문제 해결 과정을 질문하세요</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                <span className="text-gray-700 dark:text-gray-300">이해가 안 되면 즉시 "다시 설명해주세요"를 눌러주세요</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                <span className="text-gray-700 dark:text-gray-300">스스로 먼저 생각하고, AI는 가이드로 활용하세요</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Alert */}
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl shadow-lg p-6 border border-amber-200 dark:border-amber-800">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="text-amber-900 dark:text-amber-100 mb-1">주의하세요</h4>
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  AI가 제공하는 답변을 무조건 복사하지 말고, 이해하고 자신의 언어로 표현해보세요.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LearningInsights />
       </div>
     </div>
   );
