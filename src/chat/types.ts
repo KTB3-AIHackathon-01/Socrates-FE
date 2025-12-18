@@ -19,4 +19,5 @@ export interface ChatSession {
   status?: 'active' | 'completed'
   reportStatus?: 'idle' | 'loading' | 'ready' | 'error'
   reportMarkdown?: string
+  isVisible?: boolean
 }
