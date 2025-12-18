@@ -5,9 +5,8 @@ import { ChatMessages } from '@/chat/components/ChatMessages'
 import { ChatComposer } from '@/chat/components/ChatComposer'
 import { LearningInsights } from '@/chat/components/LearningInsights'
 import type { ChatSession, Message } from '@/chat/types'
-import { streamChat, generateChatTitle, type ChatStreamEvent } from '@/chat/api'
 import { chatAPI } from '@/chat/api/chatAPI'
-import type { ChatSessionResponse } from '@/chat/api/types'
+import type { ChatSessionResponse, ChatStreamEvent } from '@/chat/api/types'
 
 export function StudentChat() {
   const studentId = localStorage.getItem('student-id')
@@ -134,7 +133,7 @@ export function StudentChat() {
     titleGenerationInProgress.current.add(chatId)
 
     try {
-      const title = await generateChatTitle({
+      const title = await chatAPI.generateChatTitle({
         message: firstMessage,
         sessionId,
       })
@@ -203,14 +202,14 @@ export function StudentChat() {
     const sessionId = getSessionId(activeChat)
 
     try {
-      await streamChat(
+      await chatAPI.streamChat(
         {
           message: userMessageContent,
           userId: activeChat.userId,
           sessionId,
         },
         {
-          onChunk: (chunk) => {
+          onChunk: (chunk: string) => {
             setChatSessions((prev) =>
               prev.map((chat) => {
                 if (chat.id !== currentChatId) return chat
@@ -227,7 +226,7 @@ export function StudentChat() {
               }),
             )
           },
-          onEvent: (event) => handleStreamEvent(currentChatId, sessionId, event),
+          onEvent: (event: ChatStreamEvent) => handleStreamEvent(currentChatId, sessionId, event),
           onComplete: () => {
             setChatSessions((prev) =>
               prev.map((chat) => {
@@ -245,7 +244,7 @@ export function StudentChat() {
               generateTitleInBackground(currentChatId, userMessageContent, sessionId)
             }
           },
-          onError: (error) => {
+          onError: (error: Error) => {
             console.error('Chat streaming error:', error)
             setChatSessions((prev) =>
               prev.map((chat) => {

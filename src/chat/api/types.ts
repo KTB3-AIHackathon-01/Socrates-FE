@@ -58,6 +58,33 @@ export interface ChatHistoryResponse {
   isComplete: boolean
 }
 
+export interface ChatRequest {
+  message: string
+  userId?: string
+  sessionId?: string
+}
+
+export interface ChatStreamEvent {
+  event?: string
+  data: string
+}
+
+export interface StreamCallbacks {
+  onChunk: (chunk: string) => void
+  onEvent?: (event: ChatStreamEvent) => void
+  onComplete?: () => void
+  onError?: (error: Error) => void
+}
+
+export interface GenerateTitleRequest {
+  message: string
+  sessionId: string
+}
+
+export interface GenerateTitleResponse {
+  title: string
+}
+
 export interface ChatAPIService {
   createStudent(payload: CreateStudentRequest): Promise<StudentResponse>
   getStudentProfile(studentId: string): Promise<StudentResponse>
@@ -67,6 +94,9 @@ export interface ChatAPIService {
   getStudentSessions(params: GetStudentSessionsParams): Promise<PagedResponse<ChatSessionResponse>>
   getSessionMessages(sessionId: string, params: GetSessionMessagesParams): Promise<PagedResponse<ChatMessageResponse>>
   getChatHistory(sessionId: string): Promise<ChatHistoryResponse[]>
+  streamChat(request: ChatRequest, callbacks: StreamCallbacks): Promise<void>
+  generateChatTitle(request: GenerateTitleRequest): Promise<string>
+  checkHealth(): Promise<boolean>
 }
 
 export interface CreateStudentRequest {
