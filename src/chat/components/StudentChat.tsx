@@ -199,46 +199,7 @@ export function StudentChat() {
     )
     setIsThinking(false)
 
-    let sessionId = getSessionId(activeChat)
-
-    if (isFirstMessage && activeChat.isUserSession && studentId) {
-      try {
-        const sessionResponse = await chatAPI.createSession({
-          sessionId: currentChatId,
-          studentId,
-          name: activeChat.title,
-        })
-        sessionId = sessionResponse.sessionId
-
-        setChatSessions((prev) =>
-          prev.map((chat) =>
-            chat.id === currentChatId ? { ...chat, sessionId: sessionResponse.sessionId } : chat,
-          ),
-        )
-      } catch (error) {
-        console.error('Failed to create session:', error)
-        setIsThinking(false)
-        setChatSessions((prev) =>
-          prev.map((chat) =>
-            chat.id === currentChatId
-              ? {
-                  ...chat,
-                  messages: chat.messages.map((msg) =>
-                    msg.id === aiMessageId
-                      ? {
-                          ...msg,
-                          content: '세션 생성에 실패했습니다. 다시 시도해주세요.',
-                          streaming: false,
-                        }
-                      : msg,
-                  ),
-                }
-              : chat,
-          ),
-        )
-        return
-      }
-    }
+    const sessionId = getSessionId(activeChat)
 
     try {
       await chatAPI.streamChat(
