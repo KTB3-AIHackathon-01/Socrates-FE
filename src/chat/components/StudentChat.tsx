@@ -10,6 +10,10 @@ import type { ChatSessionResponse, ChatStreamEvent } from '@/chat/api/types'
 
 export function StudentChat() {
   const studentId = localStorage.getItem('student-id')
+  if (!studentId) {
+    return
+  }
+
   const [newChatSessions, setNewChatSessions] = useState<ChatSessionResponse[]>([])
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [activeChatId, setActiveChatId] = useState('')
@@ -30,10 +34,6 @@ export function StudentChat() {
 
   useEffect(() => {
     const getChatSessions = async () => {
-      if (!studentId) {
-        return
-      }
-
       const response = await chatAPI.getStudentSessions({ studentId: studentId })
       const sessions = response.content
       setNewChatSessions(sessions)
@@ -205,7 +205,7 @@ export function StudentChat() {
       await chatAPI.streamChat(
         {
           message: userMessageContent,
-          userId: activeChat.userId,
+          userId: studentId,
           sessionId,
         },
         {
@@ -312,10 +312,6 @@ export function StudentChat() {
     setActiveChatId(id)
     setIsThinking(false)
 
-    if (!studentId) {
-      return
-    }
-
     try {
       const historyData = await chatAPI.getChatHistory(id)
 
@@ -340,8 +336,7 @@ export function StudentChat() {
             ? {
                 ...chat,
                 messages: loadedMessages,
-                lastMessage:
-                  loadedMessages[loadedMessages.length - 1]?.content || chat.lastMessage,
+                lastMessage: loadedMessages[loadedMessages.length - 1]?.content || chat.lastMessage,
                 timestamp: loadedMessages[loadedMessages.length - 1]?.timestamp || chat.timestamp,
               }
             : chat,
