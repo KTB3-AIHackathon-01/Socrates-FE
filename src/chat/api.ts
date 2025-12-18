@@ -9,7 +9,8 @@ export interface ChatStreamResponse {
   isComplete?: boolean
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+const CHAT_API_BASE_URL =
+  import.meta.env.VITE_CHAT_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 export async function streamChat(
   request: ChatRequest,
@@ -18,7 +19,7 @@ export async function streamChat(
   onError?: (error: Error) => void,
 ): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    const response = await fetch(`${CHAT_API_BASE_URL}/api/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +79,7 @@ export async function streamChat(
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat/health`)
+    const response = await fetch(`${CHAT_API_BASE_URL}/api/chat/health`)
     return response.ok
   } catch {
     return false
