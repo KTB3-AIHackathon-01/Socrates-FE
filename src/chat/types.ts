@@ -5,6 +5,7 @@ export interface Message {
   timestamp: Date
   comprehensionCheck?: boolean
   streaming?: boolean
+  isError?: boolean
 }
 
 export interface ChatSession {
