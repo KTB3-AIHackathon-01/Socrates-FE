@@ -51,16 +51,18 @@ const markdownComponents: Components = {
       {children}
     </em>
   ),
-  code: ({ inline, children, ...props }) =>
-    inline ? (
+  code: ({ node, children, ...props }) => {
+    const isInline = !node || node.position?.start.line === node.position?.end.line
+    return isInline ? (
       <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
         {children}
       </code>
     ) : (
-      <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto mb-4" {...props}>
-        <code>{children}</code>
+      <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm overflow-auto mb-4">
+        <code {...props}>{children}</code>
       </pre>
-    ),
+    )
+  },
   blockquote: ({ children, ...props }) => (
     <blockquote
       className="border-l-4 border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 text-sm text-gray-800 dark:text-gray-100 italic mb-4"
