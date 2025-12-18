@@ -34,6 +34,15 @@ export const chatAPI: ChatAPIService = {
     return response.data
   },
 
+  async getInstructorProfile(instructorId: string) {
+    const response = await apiClient.get<InstructorResponse>('/instructors/me', {
+      headers: {
+        'X-Instructor-Id': instructorId,
+      },
+    })
+    return response.data
+  },
+
   async createSession(payload: CreateChatSessionRequest) {
     const response = await apiClient.post<ChatSessionResponse>('/sessions', payload)
     return response.data
