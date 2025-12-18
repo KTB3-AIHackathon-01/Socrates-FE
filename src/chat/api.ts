@@ -9,8 +9,7 @@ export interface ChatStreamResponse {
   isComplete?: boolean
 }
 
-const CHAT_API_BASE_URL =
-  import.meta.env.VITE_CHAT_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+const CHAT_API_BASE_URL = 'https://api.socrates-hkt.shop/api/chat'
 
 export interface ChatStreamEvent {
   event?: string
@@ -31,7 +30,7 @@ export async function streamChat(
   const { onChunk, onEvent, onComplete, onError } = callbacks
 
   try {
-    const response = await fetch(`${CHAT_API_BASE_URL}/api/chat/stream`, {
+    const response = await fetch(`${CHAT_API_BASE_URL}/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +129,7 @@ export async function streamChat(
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${CHAT_API_BASE_URL}/api/chat/health`)
+    const response = await fetch(`${CHAT_API_BASE_URL}/health`)
     return response.ok
   } catch {
     return false
@@ -148,7 +147,7 @@ export interface GenerateTitleResponse {
 
 export async function generateChatTitle(request: GenerateTitleRequest): Promise<string> {
   try {
-    const response = await fetch(`${CHAT_API_BASE_URL}/api/chat/title`, {
+    const response = await fetch(`${CHAT_API_BASE_URL}/title`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
