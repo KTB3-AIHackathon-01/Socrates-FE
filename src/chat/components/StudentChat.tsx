@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect, act } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { Brain } from 'lucide-react'
 import { ChatSidebar } from '@/chat/components/ChatSidebar'
 import { ChatMessages } from '@/chat/components/ChatMessages'
@@ -14,7 +14,6 @@ export function StudentChat() {
     return
   }
 
-  const [newChatSessions, setNewChatSessions] = useState<ChatSessionResponse[]>([])
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [activeChatId, setActiveChatId] = useState('')
   const [input, setInput] = useState('')
@@ -31,16 +30,37 @@ export function StudentChat() {
   const sessionCompleted = activeChat?.status === 'completed'
   const reportStatus = activeChat?.reportStatus
   const reportMarkdown = activeChat?.reportMarkdown
+  const sidebarSessions = useMemo(
+    () => chatSessions.filter((chat) => chat.isVisible !== false),
+    [chatSessions],
+  )
 
   useEffect(() => {
     const getChatSessions = async () => {
-      const response = await chatAPI.getStudentSessions({ studentId: studentId })
-      const sessions = response.content
-      setNewChatSessions(sessions)
+      try {
+        const response = await chatAPI.getStudentSessions({ studentId })
+        const sessions = response.content.map((session: ChatSessionResponse): ChatSession => ({
+          id: session.sessionId,
+          sessionId: session.sessionId,
+          title: session.name,
+          lastMessage: '',
+          timestamp: session.startedAt ? new Date(session.startedAt) : new Date(),
+          messages: [],
+          status: 'completed',
+          isUserSession: false,
+          isVisible: true,
+        }))
+        setChatSessions(sessions)
+        if (!activeChatId && sessions.length) {
+          setActiveChatId(sessions[0].id)
+        }
+      } catch (error) {
+        console.error('Failed to load sessions:', error)
+      }
     }
 
     getChatSessions()
-  }, [])
+  }, [studentId])
 
   const getSessionId = (chat: ChatSession) => chat.sessionId || chat.id
 
@@ -138,8 +158,7 @@ export function StudentChat() {
         sessionId,
       })
 
-      const response = await chatAPI.createSession({ sessionId, studentId, name: title })
-      setNewChatSessions((prev) => [response, ...prev])
+      await chatAPI.createSession({ sessionId, studentId, name: title })
 
       setChatSessions((prev) =>
         prev.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
@@ -239,6 +258,7 @@ export function StudentChat() {
                   messages: chat.messages.map((msg) =>
                     msg.id === aiMessageId ? { ...msg, streaming: false } : msg,
                   ),
+                  isVisible: isFirstMessage ? true : chat.isVisible,
                 }
               }),
             )
@@ -303,6 +323,7 @@ export function StudentChat() {
       isUserSession: true,
       status: 'active',
       reportStatus: 'idle',
+      isVisible: false,
     }
 
     setChatSessions((prev) => [newChat, ...prev])
@@ -315,19 +336,26 @@ export function StudentChat() {
     setActiveChatId(id)
     setIsThinking(false)
 
+    const targetChat = chatSessions.find((chat) => chat.id === id)
+    if (!targetChat) return
+
+    if (targetChat.isUserSession && !targetChat.sessionId) {
+      return
+    }
+
     try {
       const historyData = await chatAPI.getChatHistory(id)
 
       const loadedMessages: Message[] = historyData.flatMap((item) => [
         {
           id: `${item.id}-user`,
-          role: 'user' as const,
+          role: 'user',
           content: item.userMessage,
           timestamp: new Date(item.createdAt),
         },
         {
           id: `${item.id}-ai`,
-          role: 'ai' as const,
+          role: 'ai',
           content: item.assistantMessage,
           timestamp: new Date(item.completedAt || item.createdAt),
         },
@@ -341,6 +369,7 @@ export function StudentChat() {
                 messages: loadedMessages,
                 lastMessage: loadedMessages[loadedMessages.length - 1]?.content || chat.lastMessage,
                 timestamp: loadedMessages[loadedMessages.length - 1]?.timestamp || chat.timestamp,
+                status: 'completed',
               }
             : chat,
         ),
@@ -366,7 +395,7 @@ export function StudentChat() {
         isOpen={sidebarOpen}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        sessions={newChatSessions}
+        sessions={sidebarSessions}
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
