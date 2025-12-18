@@ -33,8 +33,13 @@ export function StudentChat() {
   const reportStatus = currentChat?.reportStatus
   const reportMarkdown = currentChat?.reportMarkdown
   const sidebarSessions = useMemo(
-    () => chatSessions.filter((chat) => chat.isVisible !== false),
-    [chatSessions],
+    () =>
+      chatSessions.filter(
+        (chat) =>
+          chat.isVisible !== false &&
+          chat.title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      ),
+    [chatSessions, searchQuery],
   )
   const applyChatUpdate = useCallback(
     (chatId: string, updater: (chat: ChatSession) => ChatSession) => {
