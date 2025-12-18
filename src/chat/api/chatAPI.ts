@@ -1,6 +1,7 @@
 import apiClient from './client'
 import type {
   ChatAPIService,
+  ChatHistoryResponse,
   ChatMessageResponse,
   ChatSessionResponse,
   CreateChatSessionRequest,
@@ -59,6 +60,11 @@ export const chatAPI: ChatAPIService = {
         'X-Student-Id': studentId,
       },
     })
+    return response.data
+  },
+
+  async getChatHistory(sessionId: string) {
+    const response = await apiClient.get<ChatHistoryResponse[]>(`/chat/history/${sessionId}`)
     return response.data
   },
 }

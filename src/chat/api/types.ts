@@ -48,6 +48,16 @@ export interface GetSessionMessagesParams {
   size?: number
 }
 
+export interface ChatHistoryResponse {
+  id: string
+  userMessage: string
+  assistantMessage: string
+  createdAt: string
+  completedAt: string | null
+  status: 'COMPLETED' | 'PENDING' | 'STREAMING' | 'FAILED'
+  isComplete: boolean
+}
+
 export interface ChatAPIService {
   createStudent(payload: CreateStudentRequest): Promise<StudentResponse>
   getStudentProfile(studentId: string): Promise<StudentResponse>
@@ -56,6 +66,7 @@ export interface ChatAPIService {
   getSession(sessionId: string): Promise<ChatSessionResponse>
   getStudentSessions(params: GetStudentSessionsParams): Promise<PagedResponse<ChatSessionResponse>>
   getSessionMessages(sessionId: string, params: GetSessionMessagesParams): Promise<PagedResponse<ChatMessageResponse>>
+  getChatHistory(sessionId: string): Promise<ChatHistoryResponse[]>
 }
 
 export interface CreateStudentRequest {

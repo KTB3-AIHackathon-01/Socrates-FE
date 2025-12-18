@@ -317,9 +317,40 @@ export function StudentChat() {
       return
     }
 
-    const response = await chatAPI.getSessionMessages(id, {
-      studentId: studentId,
-    })
+    try {
+      const historyData = await chatAPI.getChatHistory(id)
+
+      const loadedMessages: Message[] = historyData.flatMap((item) => [
+        {
+          id: `${item.id}-user`,
+          role: 'user' as const,
+          content: item.userMessage,
+          timestamp: new Date(item.createdAt),
+        },
+        {
+          id: `${item.id}-ai`,
+          role: 'ai' as const,
+          content: item.assistantMessage,
+          timestamp: new Date(item.completedAt || item.createdAt),
+        },
+      ])
+
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === id
+            ? {
+                ...chat,
+                messages: loadedMessages,
+                lastMessage:
+                  loadedMessages[loadedMessages.length - 1]?.content || chat.lastMessage,
+                timestamp: loadedMessages[loadedMessages.length - 1]?.timestamp || chat.timestamp,
+              }
+            : chat,
+        ),
+      )
+    } catch (error) {
+      console.error('Failed to load chat history:', error)
+    }
   }
 
   const formatTimestamp = (date: Date) => {
