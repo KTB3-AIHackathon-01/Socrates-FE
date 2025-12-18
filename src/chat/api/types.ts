@@ -85,6 +85,10 @@ export interface GenerateTitleResponse {
   title: string
 }
 
+export interface Instructor {
+  instructorId: string
+}
+
 export interface ChatAPIService {
   createStudent(payload: CreateStudentRequest): Promise<StudentResponse>
   getStudentProfile(studentId: string): Promise<StudentResponse>
@@ -97,6 +101,7 @@ export interface ChatAPIService {
   streamChat(request: ChatRequest, callbacks: StreamCallbacks): Promise<void>
   generateChatTitle(request: GenerateTitleRequest): Promise<string>
   checkHealth(): Promise<boolean>
+  createInstructor(params: { name: string }): Promise<Instructor>
 }
 
 export interface CreateStudentRequest {
