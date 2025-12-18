@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { chatAPI } from '@/chat/api/chatAPI'
+import type { InstructorResponse } from '@/chat/api/types'
 
 interface StudentPromptProps {
-  onSubmit: (nickname: string, instructorId: string) => void
+  onSubmit: (studentId: string, instructorId: string) => void
 }
 
 const copy = {
@@ -12,20 +14,52 @@ const copy = {
   cta: '학생 닉네임 등록',
 } as const
 
-const instructorOptions = [
-  { id: 'inst-01', name: '박지훈 강사' },
-  { id: 'inst-02', name: '최은서 강사' },
-  { id: 'inst-03', name: '한민혁 강사' },
-  { id: 'inst-04', name: '정유리 강사' },
-] as const
-
 export function StudentPrompt({ onSubmit }: StudentPromptProps) {
   const [nickname, setNickname] = useState('')
   const [selectedInstructor, setSelectedInstructor] = useState('')
   const [nicknameError, setNicknameError] = useState('')
   const [instructorError, setInstructorError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [instructorFetchError, setInstructorFetchError] = useState('')
+  const [instructors, setInstructors] = useState<InstructorResponse[]>([])
+  const [isLoadingInstructors, setIsLoadingInstructors] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    let isActive = true
+
+    const fetchInstructors = async () => {
+      setIsLoadingInstructors(true)
+      setInstructorFetchError('')
+
+      try {
+        const response = await chatAPI.getInstructors()
+        if (!isActive) return
+        setInstructors(response)
+      } catch {
+        if (!isActive) return
+        setInstructorFetchError('강사 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.')
+        setInstructors([])
+      } finally {
+        if (!isActive) return
+        setIsLoadingInstructors(false)
+      }
+    }
+
+    void fetchInstructors()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedInstructor) return
+    if (instructors.some((instructor) => instructor.instructorId === selectedInstructor)) return
+    setSelectedInstructor('')
+  }, [instructors, selectedInstructor])
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const trimmed = nickname.trim()
     let hasError = false
@@ -44,11 +78,29 @@ export function StudentPrompt({ onSubmit }: StudentPromptProps) {
       setInstructorError('')
     }
 
+    if (isLoadingInstructors) {
+      setInstructorError('강사 목록을 불러오는 중이에요. 잠시만 기다려주세요.')
+      hasError = true
+    }
+
     if (hasError) return
 
-    onSubmit(trimmed, selectedInstructor)
-    setNickname('')
-    setSelectedInstructor('')
+    setIsSubmitting(true)
+    setSubmitError('')
+
+    try {
+      const student = await chatAPI.createStudent({
+        name: trimmed,
+        instructorId: selectedInstructor,
+      })
+      onSubmit(student.studentId, student.instructorId)
+      setNickname('')
+      setSelectedInstructor('')
+    } catch {
+      setSubmitError('등록에 실패했어요. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -73,6 +125,7 @@ export function StudentPrompt({ onSubmit }: StudentPromptProps) {
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
               placeholder={copy.placeholder}
+              disabled={isSubmitting}
               className="
                 w-full
                 rounded-xl
@@ -83,6 +136,7 @@ export function StudentPrompt({ onSubmit }: StudentPromptProps) {
                 placeholder:text-gray-400 dark:placeholder:text-gray-500
                 focus:outline-none
                 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
+                disabled:cursor-not-allowed disabled:opacity-60
               "
             />
             {nicknameError && (
@@ -101,6 +155,7 @@ export function StudentPrompt({ onSubmit }: StudentPromptProps) {
               id="instructor"
               value={selectedInstructor}
               onChange={(event) => setSelectedInstructor(event.target.value)}
+              disabled={isSubmitting || isLoadingInstructors || instructors.length === 0}
               className="
                 w-full
                 rounded-xl
@@ -110,22 +165,31 @@ export function StudentPrompt({ onSubmit }: StudentPromptProps) {
                 text-gray-900 dark:text-white
                 focus:outline-none
                 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
+                disabled:cursor-not-allowed disabled:opacity-60
               "
             >
-              <option value="">강사를 선택해주세요</option>
-              {instructorOptions.map((instructor) => (
-                <option key={instructor.id} value={instructor.id}>
-                  {instructor.name}
+              <option value="" disabled={isLoadingInstructors}>
+                {isLoadingInstructors ? '강사 목록을 불러오는 중...' : '강사를 선택해주세요'}
+              </option>
+              {instructors.map((instructor) => (
+                <option key={instructor.instructorId} value={instructor.instructorId}>
+                  {instructor.instructorName}
                 </option>
               ))}
             </select>
             {instructorError && (
               <p className="text-sm font-medium text-[#ef4444]">{instructorError}</p>
             )}
+            {instructorFetchError && (
+              <p className="text-sm font-medium text-[#ef4444]">{instructorFetchError}</p>
+            )}
           </div>
+
+          {submitError && <p className="text-sm font-medium text-[#ef4444]">{submitError}</p>}
 
           <button
             type="submit"
+            disabled={isSubmitting}
             className="
               w-full
               rounded-xl
@@ -136,9 +200,10 @@ export function StudentPrompt({ onSubmit }: StudentPromptProps) {
               shadow-lg shadow-blue-600/20
               transition-colors
               hover:from-blue-500 hover:to-indigo-500
+              disabled:cursor-not-allowed disabled:opacity-60
             "
           >
-            {copy.cta}
+            {isSubmitting ? '등록 중...' : copy.cta}
           </button>
         </form>
       </div>

@@ -29,12 +29,12 @@ export default function App() {
 
   const shouldShowNicknamePrompt = mode === 'student' ? !studentId : !instructorId
 
-  const handleStudentNicknameSubmit = (nickname: string, instructorSelection: string) => {
+  const handleStudentNicknameSubmit = (studentId: string, instructorSelection: string) => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEYS.student, nickname)
+      window.localStorage.setItem(STORAGE_KEYS.student, studentId)
       window.localStorage.setItem(STUDENT_INSTRUCTOR_KEY, instructorSelection)
     }
-    setStudentId(nickname)
+    setStudentId(studentId)
   }
 
   const handleInstructorNicknameSubmit = (nickname: string) => {
