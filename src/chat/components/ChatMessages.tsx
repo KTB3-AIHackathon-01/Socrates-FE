@@ -151,7 +151,7 @@ export function ChatMessages({ messages, isThinking, sessionCompleted, reportSta
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
             }`}
           >
-            <p className="whitespace-pre-line">{message.content}</p>
+            <p className="whitespace-pre-line">{message.content.replace(/\s*\(남은 기회:\s*\d+회\)\s*/g, '')}</p>
             {message.comprehensionCheck && (
               <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">이해도 체크</p>
