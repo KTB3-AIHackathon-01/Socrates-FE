@@ -58,6 +58,11 @@ export interface ChatHistoryResponse {
   isComplete: boolean
 }
 
+// 강사 정보
+export interface Instructor {
+  instructorId: string
+}
+
 export interface ChatAPIService {
   createStudent(payload: CreateStudentRequest): Promise<StudentResponse>
   getStudentProfile(studentId: string): Promise<StudentResponse>
@@ -65,8 +70,16 @@ export interface ChatAPIService {
   createSession(payload: CreateChatSessionRequest): Promise<ChatSessionResponse>
   getSession(sessionId: string): Promise<ChatSessionResponse>
   getStudentSessions(params: GetStudentSessionsParams): Promise<PagedResponse<ChatSessionResponse>>
-  getSessionMessages(sessionId: string, params: GetSessionMessagesParams): Promise<PagedResponse<ChatMessageResponse>>
+  getSessionMessages(
+    sessionId: string,
+    params: GetSessionMessagesParams,
+  ): Promise<PagedResponse<ChatMessageResponse>>
   getChatHistory(sessionId: string): Promise<ChatHistoryResponse[]>
+  getSessionMessages(
+    sessionId: string,
+    params: GetSessionMessagesParams,
+  ): Promise<PagedResponse<ChatMessageResponse>>
+  createInstructor(params: { name: string }): Promise<Instructor>
 }
 
 export interface CreateStudentRequest {
