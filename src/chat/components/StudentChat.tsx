@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { Brain } from 'lucide-react'
 import { ChatSidebar } from '@/chat/components/ChatSidebar'
 import { ChatMessages } from '@/chat/components/ChatMessages'
@@ -15,6 +15,7 @@ export function StudentChat() {
   }
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [draftChat, setDraftChat] = useState<ChatSession | null>(null)
   const [activeChatId, setActiveChatId] = useState('')
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
@@ -26,40 +27,56 @@ export function StudentChat() {
     () => chatSessions.find((chat) => chat.id === activeChatId) ?? chatSessions[0],
     [activeChatId, chatSessions],
   )
-  const messages = activeChat?.messages ?? []
-  const sessionCompleted = activeChat?.status === 'completed'
-  const reportStatus = activeChat?.reportStatus
-  const reportMarkdown = activeChat?.reportMarkdown
+  const currentChat = draftChat ?? activeChat
+  const messages = currentChat?.messages ?? []
+  const sessionCompleted = !draftChat && currentChat?.status === 'completed'
+  const reportStatus = currentChat?.reportStatus
+  const reportMarkdown = currentChat?.reportMarkdown
   const sidebarSessions = useMemo(
     () => chatSessions.filter((chat) => chat.isVisible !== false),
     [chatSessions],
+  )
+  const applyChatUpdate = useCallback(
+    (chatId: string, updater: (chat: ChatSession) => ChatSession) => {
+      setDraftChat((prev) => {
+        if (prev && prev.id === chatId) {
+          return updater(prev)
+        }
+        return prev
+      })
+      setChatSessions((prev) =>
+        prev.map((chat) => (chat.id === chatId ? updater(chat) : chat)),
+      )
+    },
+    [],
   )
 
   useEffect(() => {
     const getChatSessions = async () => {
       try {
         const response = await chatAPI.getStudentSessions({ studentId })
-        const sessions = response.content.map((session: ChatSessionResponse): ChatSession => ({
-          id: session.sessionId,
-          sessionId: session.sessionId,
-          title: session.name,
-          lastMessage: '',
-          timestamp: session.startedAt ? new Date(session.startedAt) : new Date(),
-          messages: [],
-          status: 'completed',
-          isUserSession: false,
-          isVisible: true,
-        }))
+        const sessions = response.content.map(
+          (session: ChatSessionResponse): ChatSession => ({
+            id: session.sessionId,
+            sessionId: session.sessionId,
+            title: session.name,
+            lastMessage: '',
+            timestamp: session.startedAt ? new Date(session.startedAt) : new Date(),
+            messages: [],
+            status: 'completed',
+            isUserSession: false,
+            isVisible: true,
+          }),
+        )
         setChatSessions(sessions)
-        if (!activeChatId && sessions.length) {
-          setActiveChatId(sessions[0].id)
-        }
       } catch (error) {
         console.error('Failed to load sessions:', error)
       }
     }
 
     getChatSessions()
+    handleNewChat()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId])
 
   const getSessionId = (chat: ChatSession) => chat.sessionId || chat.id
@@ -97,49 +114,31 @@ export function StudentChat() {
     if (targetSessionId && targetSessionId !== sessionId) return
 
     if (event.event === 'chat_end') {
-      setChatSessions((prev) =>
-        prev.map((chat) =>
-          chat.id === chatId
-            ? {
-                ...chat,
-                status: 'completed',
-                reportStatus: chat.reportStatus === 'ready' ? 'ready' : 'loading',
-              }
-            : chat,
-        ),
-      )
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        status: 'completed',
+        reportStatus: chat.reportStatus === 'ready' ? 'ready' : 'loading',
+      }))
       return
     }
 
     if (event.event === 'report') {
       const markdown = extractMarkdown(payload, event.data)
-      setChatSessions((prev) =>
-        prev.map((chat) =>
-          chat.id === chatId
-            ? {
-                ...chat,
-                reportMarkdown: markdown,
-                reportStatus: 'ready',
-                status: 'completed',
-              }
-            : chat,
-        ),
-      )
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        reportMarkdown: markdown,
+        reportStatus: 'ready',
+        status: 'completed',
+      }))
       return
     }
 
     if (event.event === 'report_error') {
-      setChatSessions((prev) =>
-        prev.map((chat) =>
-          chat.id === chatId
-            ? {
-                ...chat,
-                reportStatus: 'error',
-                status: 'completed',
-              }
-            : chat,
-        ),
-      )
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        reportStatus: 'error',
+        status: 'completed',
+      }))
     }
   }
 
@@ -160,9 +159,7 @@ export function StudentChat() {
 
       await chatAPI.createSession({ sessionId, studentId, name: title })
 
-      setChatSessions((prev) =>
-        prev.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
-      )
+      applyChatUpdate(chatId, (chat) => ({ ...chat, title }))
     } catch (error) {
       console.error('Failed to generate title:', error)
     } finally {
@@ -171,10 +168,15 @@ export function StudentChat() {
   }
 
   const handleSend = async () => {
-    if (!input.trim() || !activeChat || activeChat.status === 'completed') return
+    if (!input.trim()) return
+    const targetChat = currentChat
+    if (!targetChat) return
+    const isDraft = draftChat?.id === targetChat.id
+    if (!isDraft && targetChat.status === 'completed') return
 
-    const currentChatId = activeChat.id
-    const isFirstMessage = activeChat.messages.filter((msg) => msg.role === 'user').length === 0
+    const currentChatId = targetChat.id
+    const isFirstMessage = targetChat.messages.filter((msg) => msg.role === 'user').length === 0
+    const wasNewChat = targetChat.title === '새 채팅'
     const userMessageContent = input
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -183,20 +185,33 @@ export function StudentChat() {
       timestamp: new Date(),
     }
 
-    setChatSessions((prev) =>
-      prev.map((chat) => {
-        if (chat.id !== currentChatId) return chat
-        const updatedMessages = [...chat.messages, userMessage]
+    if (isDraft) {
+      setDraftChat((prev) => {
+        if (!prev || prev.id !== currentChatId) return prev
+        const updatedMessages = [...prev.messages, userMessage]
         return {
-          ...chat,
+          ...prev,
           messages: updatedMessages,
           lastMessage: userMessage.content,
           timestamp: userMessage.timestamp,
-          status: 'active',
-          reportStatus: chat.reportStatus ?? 'idle',
         }
-      }),
-    )
+      })
+    } else {
+      setChatSessions((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== currentChatId) return chat
+          const updatedMessages = [...chat.messages, userMessage]
+          return {
+            ...chat,
+            messages: updatedMessages,
+            lastMessage: userMessage.content,
+            timestamp: userMessage.timestamp,
+            status: 'active',
+            reportStatus: chat.reportStatus ?? 'idle',
+          }
+        }),
+      )
+    }
     setInput('')
     setIsThinking(true)
 
@@ -209,19 +224,29 @@ export function StudentChat() {
       streaming: true,
     }
 
-    setChatSessions((prev) =>
-      prev.map((chat) =>
-        chat.id === currentChatId
-          ? {
-              ...chat,
-              messages: [...chat.messages, aiMessage],
-            }
-          : chat,
-      ),
-    )
+    if (isDraft) {
+      setDraftChat((prev) => {
+        if (!prev || prev.id !== currentChatId) return prev
+        return {
+          ...prev,
+          messages: [...prev.messages, aiMessage],
+        }
+      })
+    } else {
+      setChatSessions((prev) =>
+        prev.map((chat) =>
+          chat.id === currentChatId
+            ? {
+                ...chat,
+                messages: [...chat.messages, aiMessage],
+              }
+            : chat,
+        ),
+      )
+    }
     setIsThinking(false)
 
-    const sessionId = getSessionId(activeChat)
+    const sessionId = getSessionId(targetChat)
 
     try {
       await chatAPI.streamChat(
@@ -232,49 +257,90 @@ export function StudentChat() {
         },
         {
           onChunk: (chunk: string) => {
-            setChatSessions((prev) =>
-              prev.map((chat) => {
-                if (chat.id !== currentChatId) return chat
+            if (isDraft) {
+              setDraftChat((prev) => {
+                if (!prev || prev.id !== currentChatId) return prev
                 return {
-                  ...chat,
-                  messages: chat.messages.map((msg) =>
+                  ...prev,
+                  messages: prev.messages.map((msg) =>
                     msg.id === aiMessageId ? { ...msg, content: msg.content + chunk } : msg,
                   ),
                   lastMessage:
-                    chat.messages.find((msg) => msg.id === aiMessageId)?.content ||
-                    chat.lastMessage,
+                    prev.messages.find((msg) => msg.id === aiMessageId)?.content ||
+                    prev.lastMessage,
                   timestamp: new Date(),
                 }
-              }),
-            )
+              })
+            } else {
+              setChatSessions((prev) =>
+                prev.map((chat) => {
+                  if (chat.id !== currentChatId) return chat
+                  return {
+                    ...chat,
+                    messages: chat.messages.map((msg) =>
+                      msg.id === aiMessageId ? { ...msg, content: msg.content + chunk } : msg,
+                    ),
+                    lastMessage:
+                      chat.messages.find((msg) => msg.id === aiMessageId)?.content ||
+                      chat.lastMessage,
+                    timestamp: new Date(),
+                  }
+                }),
+              )
+            }
           },
           onEvent: (event: ChatStreamEvent) => handleStreamEvent(currentChatId, sessionId, event),
           onComplete: () => {
-            setChatSessions((prev) =>
-              prev.map((chat) => {
-                if (chat.id !== currentChatId) return chat
-                return {
-                  ...chat,
-                  messages: chat.messages.map((msg) =>
-                    msg.id === aiMessageId ? { ...msg, streaming: false } : msg,
-                  ),
-                  isVisible: isFirstMessage ? true : chat.isVisible,
+            if (isDraft) {
+              setDraftChat((prev) => {
+                if (!prev || prev.id !== currentChatId) return prev
+                const updatedMessages = prev.messages.map((msg) =>
+                  msg.id === aiMessageId ? { ...msg, streaming: false } : msg,
+                )
+                const updatedChat = {
+                  ...prev,
+                  messages: updatedMessages,
                 }
-              }),
-            )
 
-            if (isFirstMessage && activeChat.title === '새 채팅') {
+                if (isFirstMessage) {
+                  const promotedChat = {
+                    ...updatedChat,
+                    isVisible: true,
+                    status: 'active' as const,
+                  }
+                  setChatSessions((sessions) => [promotedChat, ...sessions])
+                  setActiveChatId(promotedChat.id)
+                  return null
+                }
+
+                return updatedChat
+              })
+            } else {
+              setChatSessions((prev) =>
+                prev.map((chat) => {
+                  if (chat.id !== currentChatId) return chat
+                  return {
+                    ...chat,
+                    messages: chat.messages.map((msg) =>
+                      msg.id === aiMessageId ? { ...msg, streaming: false } : msg,
+                    ),
+                  }
+                }),
+              )
+            }
+
+            if (isFirstMessage && wasNewChat) {
               generateTitleInBackground(currentChatId, userMessageContent, sessionId)
             }
           },
           onError: (error: Error) => {
             console.error('Chat streaming error:', error)
-            setChatSessions((prev) =>
-              prev.map((chat) => {
-                if (chat.id !== currentChatId) return chat
+            if (isDraft) {
+              setDraftChat((prev) => {
+                if (!prev || prev.id !== currentChatId) return prev
                 return {
-                  ...chat,
-                  messages: chat.messages.map((msg) =>
+                  ...prev,
+                  messages: prev.messages.map((msg) =>
                     msg.id === aiMessageId
                       ? {
                           ...msg,
@@ -284,8 +350,26 @@ export function StudentChat() {
                       : msg,
                   ),
                 }
-              }),
-            )
+              })
+            } else {
+              setChatSessions((prev) =>
+                prev.map((chat) => {
+                  if (chat.id !== currentChatId) return chat
+                  return {
+                    ...chat,
+                    messages: chat.messages.map((msg) =>
+                      msg.id === aiMessageId
+                        ? {
+                            ...msg,
+                            content: '오류가 발생했습니다. 다시 시도해주세요.',
+                            streaming: false,
+                          }
+                        : msg,
+                    ),
+                  }
+                }),
+              )
+            }
           },
         },
       )
@@ -304,16 +388,6 @@ export function StudentChat() {
       timestamp,
     }
 
-    const existingDraft = chatSessions.find(
-      (chat) => chat.isUserSession && !chat.messages.some((message) => message.role === 'user'),
-    )
-
-    if (existingDraft) {
-      setActiveChatId(existingDraft.id)
-      setSidebarOpen(true)
-      return
-    }
-
     const newChat: ChatSession = {
       id: newId,
       title: '새 채팅',
@@ -326,13 +400,14 @@ export function StudentChat() {
       isVisible: false,
     }
 
-    setChatSessions((prev) => [newChat, ...prev])
-    setActiveChatId(newId)
+    setDraftChat(newChat)
+    setActiveChatId('')
     setIsThinking(false)
     setSidebarOpen(true)
   }
 
   const handleSelectChat = async (id: string) => {
+    setDraftChat(null)
     setActiveChatId(id)
     setIsThinking(false)
 
