@@ -3,7 +3,7 @@ import { StudentChat } from '@/chat'
 import { InstructorDashboard } from '@/dashboard'
 import { StudentPrompt } from '@/components/StudentPrompt'
 import { InstructorPrompt } from '@/components/InstructorPrompt'
-import { GraduationCap } from 'lucide-react'
+import chatLogo from '@/assets/chat-logo.svg'
 import { chatAPI } from './chat/api/chatAPI'
 
 const STORAGE_KEYS = {
@@ -158,14 +158,15 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 rounded-full overflow-hidden shadow-inner border border-white/50 dark:border-gray-700">
+                <img
+                  src={chatLogo}
+                  alt="소크라테스 AI 로고"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
-                <h1 className="text-gray-900 dark:text-white">AI 러닝 파트너</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  함께 성장하는 AI 학습 플랫폼
-                </p>
+                <h1 className="text-gray-900 dark:text-white">소크라테스 AI</h1>
               </div>
             </div>
 

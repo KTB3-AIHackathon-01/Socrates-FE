@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, FileText, Loader2, Maximize2 } from 'lucide-react'
 import ReactMarkdown, { type Components } from 'react-markdown'
@@ -107,11 +107,20 @@ interface ChatMessagesProps {
 export function ChatMessages({ messages, isThinking, sessionCompleted, reportStatus, reportMarkdown }: ChatMessagesProps) {
   const [isReportDialogOpen, setReportDialogOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const reportPreview = useMemo(() => reportMarkdown?.slice(0, 1200) ?? '', [reportMarkdown])
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    containerRef.current.scrollTo({
+      top: containerRef.current.scrollHeight,
+      behavior: 'smooth',
+    })
+  }, [messages, isThinking])
 
   useEffect(() => {
     if (!isReportDialogOpen) return
@@ -139,7 +148,7 @@ export function ChatMessages({ messages, isThinking, sessionCompleted, reportSta
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+    <div ref={containerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
       {messages.map((message) => (
         <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
           <div
