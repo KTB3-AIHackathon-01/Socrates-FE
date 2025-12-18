@@ -89,6 +89,16 @@ export interface Instructor {
   instructorId: string
 }
 
+export interface SessionReportResponse {
+  id: string
+  userId: string
+  sessionId: string
+  reportData: string
+  reportJson: string | null
+  createdAt: string
+  status: string
+}
+
 export interface ChatAPIService {
   createStudent(payload: CreateStudentRequest): Promise<StudentResponse>
   getStudentProfile(studentId: string): Promise<StudentResponse>
@@ -106,6 +116,7 @@ export interface ChatAPIService {
   generateChatTitle(request: GenerateTitleRequest): Promise<string>
   checkHealth(): Promise<boolean>
   createInstructor(params: { name: string }): Promise<Instructor>
+  getSessionReport(sessionId: string): Promise<SessionReportResponse>
 }
 
 export interface CreateStudentRequest {

@@ -102,13 +102,23 @@ export function StudentChat() {
     return undefined
   }
 
-  const extractMarkdown = (data: unknown, fallback: string) => {
-    if (typeof data === 'string') return data || fallback
-    if (!data || typeof data !== 'object') return fallback
-    const record = data as Record<string, unknown>
-    if (typeof record.markdown === 'string') return record.markdown
-    if (typeof record.content === 'string') return record.content
-    return fallback
+  const fetchSessionReport = async (chatId: string, sessionId: string) => {
+    try {
+      const reportData = await chatAPI.getSessionReport(sessionId)
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        reportMarkdown: reportData.reportData,
+        reportStatus: 'ready',
+        status: 'completed',
+      }))
+    } catch (error) {
+      console.error('Failed to fetch report:', error)
+      applyChatUpdate(chatId, (chat) => ({
+        ...chat,
+        reportStatus: 'error',
+        status: 'completed',
+      }))
+    }
   }
 
   const handleStreamEvent = (chatId: string, sessionId: string, event: ChatStreamEvent) => {
@@ -122,28 +132,10 @@ export function StudentChat() {
       applyChatUpdate(chatId, (chat) => ({
         ...chat,
         status: 'completed',
-        reportStatus: chat.reportStatus === 'ready' ? 'ready' : 'loading',
+        reportStatus: 'loading',
       }))
+      fetchSessionReport(chatId, sessionId)
       return
-    }
-
-    if (event.event === 'report') {
-      const markdown = extractMarkdown(payload, event.data)
-      applyChatUpdate(chatId, (chat) => ({
-        ...chat,
-        reportMarkdown: markdown,
-        reportStatus: 'ready',
-        status: 'completed',
-      }))
-      return
-    }
-
-    if (event.event === 'report_error') {
-      applyChatUpdate(chatId, (chat) => ({
-        ...chat,
-        reportStatus: 'error',
-        status: 'completed',
-      }))
     }
   }
 
