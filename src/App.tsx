@@ -1,10 +1,48 @@
-import { useState } from 'react';
-import { StudentChat } from '@/chat';
-import { InstructorDashboard } from '@/dashboard';
-import { GraduationCap, LayoutDashboard } from 'lucide-react';
+import { useState } from 'react'
+import { StudentChat } from '@/chat'
+import { InstructorDashboard } from '@/dashboard'
+import { StudentPrompt } from '@/components/StudentPrompt'
+import { InstructorPrompt } from '@/components/InstructorPrompt'
+import { GraduationCap, LayoutDashboard } from 'lucide-react'
+
+const STORAGE_KEYS = {
+  student: 'student-id',
+  instructor: 'instructor-id',
+} as const
+const STUDENT_INSTRUCTOR_KEY = 'student-instructor'
+
+const getStoredNickname = (key: string) => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  return window.localStorage.getItem(key)
+}
 
 export default function App() {
-  const [mode, setMode] = useState<'student' | 'instructor'>('student');
+  const [mode, setMode] = useState<'student' | 'instructor'>('student')
+  const [studentId, setStudentId] = useState<string | null>(() =>
+    getStoredNickname(STORAGE_KEYS.student),
+  )
+  const [instructorId, setInstructorId] = useState<string | null>(() =>
+    getStoredNickname(STORAGE_KEYS.instructor),
+  )
+
+  const shouldShowNicknamePrompt = mode === 'student' ? !studentId : !instructorId
+
+  const handleStudentNicknameSubmit = (nickname: string, instructorSelection: string) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEYS.student, nickname)
+      window.localStorage.setItem(STUDENT_INSTRUCTOR_KEY, instructorSelection)
+    }
+    setStudentId(nickname)
+  }
+
+  const handleInstructorNicknameSubmit = (nickname: string) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEYS.instructor, nickname)
+    }
+    setInstructorId(nickname)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -18,7 +56,9 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-gray-900 dark:text-white">AI 러닝 파트너</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">함께 성장하는 AI 학습 플랫폼</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  함께 성장하는 AI 학습 플랫폼
+                </p>
               </div>
             </div>
 
@@ -53,8 +93,18 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {mode === 'student' ? <StudentChat /> : <InstructorDashboard />}
+        {shouldShowNicknamePrompt ? (
+          mode === 'student' ? (
+            <StudentPrompt onSubmit={handleStudentNicknameSubmit} />
+          ) : (
+            <InstructorPrompt onSubmit={handleInstructorNicknameSubmit} />
+          )
+        ) : mode === 'student' ? (
+          <StudentChat />
+        ) : (
+          <InstructorDashboard />
+        )}
       </main>
     </div>
-  );
+  )
 }
