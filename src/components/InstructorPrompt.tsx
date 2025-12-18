@@ -1,3 +1,4 @@
+import { chatAPI } from '@/chat/api/chatAPI'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -16,7 +17,7 @@ export function InstructorPrompt({ onSubmit }: InstructorPromptProps) {
   const [nickname, setNickname] = useState('')
   const [error, setError] = useState('')
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const trimmed = nickname.trim()
 
@@ -26,8 +27,13 @@ export function InstructorPrompt({ onSubmit }: InstructorPromptProps) {
     }
 
     setError('')
-    onSubmit(trimmed)
     setNickname('')
+
+    const instructor = await chatAPI.createInstructor({
+      name: trimmed,
+    })
+
+    onSubmit(instructor.instructorId)
   }
 
   return (

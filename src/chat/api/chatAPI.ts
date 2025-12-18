@@ -8,6 +8,7 @@ import type {
   CreateStudentRequest,
   GetSessionMessagesParams,
   GetStudentSessionsParams,
+  Instructor,
   InstructorResponse,
   PagedResponse,
   StudentResponse,
@@ -53,13 +54,24 @@ export const chatAPI: ChatAPIService = {
     return response.data
   },
 
-  async getSessionMessages(sessionId: string, { studentId, page = 0, size = 20 }: GetSessionMessagesParams) {
-    const response = await apiClient.get<PagedResponse<ChatMessageResponse>>(`/messages/session/${sessionId}`, {
-      params: { page, size },
-      headers: {
-        'X-Student-Id': studentId,
+  async getSessionMessages(
+    sessionId: string,
+    { studentId, page = 0, size = 20 }: GetSessionMessagesParams,
+  ) {
+    const response = await apiClient.get<PagedResponse<ChatMessageResponse>>(
+      `/messages/session/${sessionId}`,
+      {
+        params: { page, size },
+        headers: {
+          'X-Student-Id': studentId,
+        },
       },
-    })
+    )
+    return response.data
+  },
+
+  async createInstructor(params) {
+    const response = await apiClient.post<Instructor>('/instructors', params)
     return response.data
   },
 
